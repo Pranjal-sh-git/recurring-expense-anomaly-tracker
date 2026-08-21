@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recurring Expense Anomaly Tracker</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Recurring Expense Anomaly Tracker</h1>
+    </header>
+
+    <main class="app-container">
+        <!-- Dashboard Summary Section -->
+        <section id="dashboard-summary" class="dashboard-summary">
+            <h2 class="section-title">Dashboard Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card" id="total-expenses-card">
+                    <h3>Total Expenses</h3>
+                    <div class="summary-value" id="total-expenses-value">--</div>
+                </div>
+                <div class="summary-card" id="total-transactions-card">
+                    <h3>Total Transactions</h3>
+                    <div class="summary-value" id="total-transactions-value">--</div>
+                </div>
+                <div class="summary-card" id="anomalies-detected-card">
+                    <h3>Anomalies Detected</h3>
+                    <div class="summary-value" id="anomalies-value">--</div>
+                </div>
+                <div class="summary-card" id="highest-spending-card">
+                    <h3>Highest Spending Category</h3>
+                    <div class="summary-value" id="highest-category-value">--</div>
+                </div>
+            </div>
+        </section>
+
+        <div class="content-layout">
+            <!-- Transaction Entry Section -->
+            <section id="transaction-entry" class="transaction-entry">
+                <h2 class="section-title">Transaction Entry</h2>
+                <div id="transaction-form-container" class="placeholder-container">
+                    <!-- Form will be rendered here by forms.js -->
+                    <p class="placeholder-text">Loading transaction form...</p>
+                </div>
+            </section>
+
+            <!-- Transaction History Section -->
+            <section id="transaction-history" class="transaction-history">
+                <h2 class="section-title">Transaction History</h2>
+                <div id="transaction-table-container" class="placeholder-container">
+                    <!-- Table will be rendered here by transactionTable.js -->
+                    <p class="placeholder-text">Loading transaction history...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Main Entry Module to load JS UI modules -->
+    <script type="module">
+        import { initDashboard } from './js/ui/dashboard.js';
+        import { initForm } from './js/ui/forms.js';
+        import { initTransactionTable } from './js/ui/transactionTable.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboard();
+            initForm();
+            initTransactionTable();
+        });
+    </script>
+</body>
+</html>
