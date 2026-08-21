@@ -14,11 +14,11 @@ try {
 
 /**
  * Returns all transactions in the store.
- * Returns a shallow copy of the array to prevent direct external mutations.
+ * Returns a copy of the transactions and their objects to prevent direct external mutations.
  * @returns {Array} Array of transaction objects.
  */
 export function getTransactions() {
-    return [...transactions];
+    return transactions.map(t => ({ ...t }));
 }
 
 /**
@@ -47,7 +47,7 @@ export function addTransaction(transaction) {
 
     transactions.push(newTransaction);
     saveTransactions(transactions);
-    return newTransaction;
+    return { ...newTransaction };
 }
 
 /**
@@ -74,3 +74,48 @@ export function clearStore() {
     transactions = [];
     saveTransactions(transactions);
 }
+
+/**
+ * Loads an array of transactions into the store.
+ * Validates each transaction beforehand to prevent partial store updates and storage corruption.
+ * By default, replaces the existing transactions. If append is true, appends them.
+ * @param {Array} demoTransactions - The array of transactions to load.
+ * @param {boolean} [append=false] - Whether to append or replace.
+ * @returns {Array} The successfully loaded transactions.
+ * @throws {Error} If validation fails or input is not an array.
+ */
+export function loadDemoData(demoTransactions, append = false) {
+    if (!Array.isArray(demoTransactions)) {
+        throw new Error('Demo data must be a valid array.');
+    }
+
+    // Validate all transactions first to prevent partial load issues
+    const validatedList = [];
+    for (const tx of demoTransactions) {
+        const validation = validateTransaction(tx);
+        if (!validation.isValid) {
+            const errorMsg = Object.entries(validation.errors)
+                .map(([key, msg]) => `${key}: ${msg}`)
+                .join(', ');
+            throw new Error(`Validation failed for demo transaction "${tx.title || 'Untitled'}": ${errorMsg}`);
+        }
+
+        validatedList.push({
+            id: tx.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 9))),
+            title: tx.title.trim(),
+            amount: Number(tx.amount),
+            category: tx.category.trim(),
+            date: tx.date
+        });
+    }
+
+    if (append) {
+        transactions.push(...validatedList);
+    } else {
+        transactions = validatedList;
+    }
+
+    saveTransactions(transactions);
+    return validatedList.map(t => ({ ...t }));
+}
+
