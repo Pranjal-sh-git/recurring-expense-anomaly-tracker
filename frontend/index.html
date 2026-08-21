@@ -58,14 +58,36 @@
 
     <!-- Main Entry Module to load JS UI modules -->
     <script type="module">
-        import { initDashboard } from './js/ui/dashboard.js';
-        import { initForm } from './js/ui/forms.js';
-        import { initTransactionTable } from './js/ui/transactionTable.js';
+        import { initDashboard }                       from './js/ui/dashboard.js';
+        import { initForm, getFormValues, resetForm }  from './js/ui/forms.js';
+        import { initTransactionTable, renderTransactions } from './js/ui/transactionTable.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             initDashboard();
             initForm();
             initTransactionTable();
+
+            // Wire up form submit: read values, log them, reset form.
+            // Data persistence and anomaly detection are handled in later phases.
+            const form = document.getElementById('expense-form');
+            if (form) {
+                form.addEventListener('submit', () => {
+                    const values = getFormValues();
+                    if (!values) return;
+
+                    // Basic client-side validation
+                    if (!values.title || !values.category || !values.date || values.amount <= 0) {
+                        import('./js/ui/forms.js').then(({ showFormError }) => {
+                            showFormError('Please fill in all required fields with valid values.');
+                        });
+                        return;
+                    }
+
+                    // Placeholder: log the captured values until data layer is connected.
+                    console.log('Transaction captured (Phase 1 - not yet persisted):', values);
+                    resetForm();
+                });
+            }
         });
     </script>
 </body>
