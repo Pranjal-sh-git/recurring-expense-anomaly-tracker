@@ -1,6 +1,6 @@
 /* Modern, Clean Design Tokens */
 :root {
-    --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     
     /* Elegant Gray/Blue Slate Palette */
     --bg-color: #f8fafc;
@@ -198,8 +198,20 @@ body {
     border-radius: var(--radius-md);
     font-size: 0.95rem;
     font-weight: 600;
-    cursor: not-allowed; /* Submission is disabled in Phase 1 */
-    opacity: 0.8;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.btn-submit:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+    box-shadow: none;
 }
 
 /* Basic Table Styles (To be rendered by transactionTable.js) */

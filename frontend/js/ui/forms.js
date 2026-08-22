@@ -4,15 +4,17 @@
  * reusable helper functions for reading and resetting form values.
  *
  * Exports:
- *   initForm()       - Renders the form HTML into #transaction-form-container.
- *   getFormValues()  - Returns the current field values as a plain object.
- *   resetForm()      - Clears / resets all form fields.
+ *   initForm()             - Renders the form HTML into #transaction-form-container.
+ *   getFormValues()        - Returns the current field values as a plain object.
+ *   resetForm()            - Clears / resets all form fields and hides feedback.
+ *   showFormError(msg)     - Displays an inline validation error.
+ *   showFormSuccess(msg)   - Displays an inline success message (auto-hides after 3 s).
  */
 
 /**
  * Render the transaction entry form into its container.
  * Attaches a submit listener that prevents default browser behaviour.
- * Actual data persistence is handled by the caller via getFormValues().
+ * Actual data persistence and validation are handled by app.js via getFormValues().
  */
 export function initForm() {
     console.log('Forms UI Module initialized.');
@@ -75,18 +77,20 @@ export function initForm() {
                 >
             </div>
 
-            <div class="form-group" style="flex-direction: row; gap: 0.5rem; align-items: center; margin: 0.25rem 0;">
+            <div class="form-group form-group--inline">
                 <input type="checkbox" id="tx-recurring" name="recurring">
                 <label for="tx-recurring">Recurring Expense</label>
             </div>
 
-            <p class="form-error" id="form-error" style="display:none; color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;"></p>
+            <!-- Validation / feedback messages -->
+            <p class="form-error" id="form-error" role="alert" aria-live="polite"></p>
+            <p class="form-success-msg" id="form-success" role="status" aria-live="polite"></p>
 
-            <button type="submit" class="btn-submit">Add Transaction</button>
+            <button type="submit" class="btn-submit" id="btn-add-transaction">Add Transaction</button>
         </form>
     `;
 
-    // Prevent default browser submission; caller handles onsubmit via event delegation.
+    // Prevent default browser form submission; actual handling is in app.js.
     const form = document.getElementById('expense-form');
     if (form) {
         form.addEventListener('submit', (e) => {
@@ -123,7 +127,7 @@ export function getFormValues() {
 
 /**
  * Clear and reset all transaction form fields to their default state.
- * Also hides any visible validation error message.
+ * Also hides any visible validation error or success message.
  */
 export function resetForm() {
     const form = document.getElementById('expense-form');
@@ -131,22 +135,62 @@ export function resetForm() {
         form.reset();
     }
 
-    // Hide error banner if present
+    // Hide both feedback banners
     const errorEl = document.getElementById('form-error');
     if (errorEl) {
         errorEl.style.display = 'none';
         errorEl.textContent = '';
     }
+
+    const successEl = document.getElementById('form-success');
+    if (successEl) {
+        successEl.style.display = 'none';
+        successEl.textContent = '';
+    }
 }
 
 /**
  * Show a validation error message inside the form.
+ * Also dismisses any active success message.
  * @param {string} message - The error text to display.
  */
 export function showFormError(message) {
+    // Dismiss success first
+    const successEl = document.getElementById('form-success');
+    if (successEl) {
+        successEl.style.display = 'none';
+        successEl.textContent = '';
+    }
+
     const errorEl = document.getElementById('form-error');
     if (errorEl) {
         errorEl.textContent = message;
         errorEl.style.display = 'block';
+    }
+}
+
+/**
+ * Show a success message inside the form.
+ * Auto-hides after 3 seconds. Also dismisses any active error message.
+ * @param {string} message - The success text to display.
+ */
+export function showFormSuccess(message) {
+    // Dismiss error first
+    const errorEl = document.getElementById('form-error');
+    if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+    }
+
+    const successEl = document.getElementById('form-success');
+    if (successEl) {
+        successEl.textContent = message;
+        successEl.style.display = 'block';
+
+        // Auto-hide after 3 s
+        setTimeout(() => {
+            successEl.style.display = 'none';
+            successEl.textContent = '';
+        }, 3000);
     }
 }

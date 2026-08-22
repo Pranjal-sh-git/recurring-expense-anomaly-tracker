@@ -1,0 +1,95 @@
+/* ============================================================
+   animations.css
+   Smooth, subtle motion for the Expense Anomaly Tracker UI.
+   All animations respect the prefers-reduced-motion media query.
+   ============================================================ */
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Quick highlight flash for newly-inserted rows */
+@keyframes rowHighlight {
+    0%   { background-color: #e0e7ff; }
+    100% { background-color: transparent; }
+}
+
+/* Pulse glow for anomaly rows on first render */
+@keyframes anomalyPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* ─── Page-level entrance animations ─────────────────────────────────────────── */
+
+.app-header {
+    animation: slideInDown 0.35s ease-out both;
+}
+
+/* Staggered summary cards */
+.summary-card {
+    animation: fadeIn 0.4s ease-out both;
+}
+
+.summary-card:nth-child(1) { animation-delay: 0.05s; }
+.summary-card:nth-child(2) { animation-delay: 0.10s; }
+.summary-card:nth-child(3) { animation-delay: 0.15s; }
+.summary-card:nth-child(4) { animation-delay: 0.20s; }
+
+/* Form and table panels */
+.transaction-entry,
+.transaction-history {
+    animation: fadeIn 0.45s ease-out 0.1s both;
+}
+
+/* ─── Table row animations ───────────────────────────────────────────────────── */
+
+/* Every row slides in; keep delay short so the list feels snappy */
+.tx-row {
+    animation: fadeIn 0.25s ease-out both;
+}
+
+/* Empty state fades in gently */
+.empty-state-row {
+    animation: fadeIn 0.35s ease-out both;
+}
+
+/* ─── Form feedback animations ───────────────────────────────────────────────── */
+
+.form-error,
+.form-success-msg {
+    animation: fadeIn 0.2s ease-out both;
+}
+
+/* ─── Respect reduced-motion preference ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
