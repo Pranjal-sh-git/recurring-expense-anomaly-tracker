@@ -2,20 +2,25 @@
  * Anomaly Detection Service
  * 
  * Provides reusable, dependency-free statistical functions and transaction
- * anomaly detection logic using Z-Score statistical analysis.
- * Phase 1 - Day 1 & Day 2 Foundation
+ * anomaly detection logic using Category-Based Z-Score statistical analysis.
+ * 
+ * Primary Anomaly Approach:
+ * Transactions -> Group by Category -> Category Mean & Std Dev -> Transaction Z-Score -> Flag Outliers (Z >= threshold)
+ * 
+ * Phase 1 - Member 3 Final Sprint
  */
 
 /**
  * Standard Z-Score threshold for flagging statistical anomalies.
- * Absolute Z-Score values greater than this threshold are considered anomalies.
+ * Absolute Z-Score values greater than or equal to this threshold are considered anomalies.
  */
 export const ANOMALY_Z_THRESHOLD = 2;
 
 /**
  * Calculates the arithmetic mean of an array of numbers.
+ * Safely handles empty arrays, invalid values, and non-numeric items.
  *
- * @param {number[]} values - Array of numerical values.
+ * @param {Array<number|string>} values - Array of numerical values or numeric strings.
  * @returns {number} The arithmetic mean of the values, or 0 if empty/invalid.
  */
 export function calculateMean(values) {
@@ -23,7 +28,10 @@ export function calculateMean(values) {
         return 0;
     }
 
-    const validValues = values.map(v => Number(v)).filter(v => !isNaN(v));
+    const validValues = values
+        .map(v => (v !== null && v !== undefined && typeof v !== 'symbol' && typeof v !== 'boolean' ? Number(v) : NaN))
+        .filter(v => !isNaN(v) && isFinite(v));
+
     if (validValues.length === 0) {
         return 0;
     }
@@ -34,17 +42,21 @@ export function calculateMean(values) {
 
 /**
  * Calculates the population standard deviation of an array of numbers manually.
+ * Safely handles empty arrays, single-item arrays, invalid values, and zero variance.
  *
- * @param {number[]} values - Array of numerical values.
- * @returns {number} The standard deviation of the values, or 0 if empty/invalid.
+ * @param {Array<number|string>} values - Array of numerical values or numeric strings.
+ * @returns {number} The standard deviation of the values, or 0 if empty/invalid/zero-variance.
  */
 export function calculateStandardDeviation(values) {
-    if (!Array.isArray(values) || values.length === 0) {
+    if (!Array.isArray(values) || values.length <= 1) {
         return 0;
     }
 
-    const validValues = values.map(v => Number(v)).filter(v => !isNaN(v));
-    if (validValues.length === 0) {
+    const validValues = values
+        .map(v => (v !== null && v !== undefined && typeof v !== 'symbol' && typeof v !== 'boolean' ? Number(v) : NaN))
+        .filter(v => !isNaN(v) && isFinite(v));
+
+    if (validValues.length <= 1) {
         return 0;
     }
 
@@ -60,22 +72,33 @@ export function calculateStandardDeviation(values) {
 
 /**
  * Calculates the Z-Score of a given value relative to a mean and standard deviation.
- * Safely handles cases where the standard deviation is zero.
+ * Safely handles zero standard deviation, missing inputs, and non-numeric values.
  *
- * @param {number} value - The data point value.
- * @param {number} mean - The mean of the dataset.
- * @param {number} standardDeviation - The standard deviation of the dataset.
+ * @param {number|string} value - The data point value.
+ * @param {number|string} mean - The mean of the dataset.
+ * @param {number|string} standardDeviation - The standard deviation of the dataset.
  * @returns {number} The calculated Z-Score, or 0 if standard deviation is zero/invalid.
  */
 export function calculateZScore(value, mean, standardDeviation) {
+    if (standardDeviation === null || standardDeviation === undefined || typeof standardDeviation === 'symbol' || typeof standardDeviation === 'boolean') {
+        return 0;
+    }
+
     const numStd = Number(standardDeviation);
-    if (!numStd || isNaN(numStd) || numStd === 0) {
+    if (isNaN(numStd) || !isFinite(numStd) || numStd === 0) {
+        return 0;
+    }
+
+    if (value === null || value === undefined || typeof value === 'symbol' || typeof value === 'boolean') {
+        return 0;
+    }
+    if (mean === null || mean === undefined || typeof mean === 'symbol' || typeof mean === 'boolean') {
         return 0;
     }
 
     const numVal = Number(value);
     const numMean = Number(mean);
-    if (isNaN(numVal) || isNaN(numMean)) {
+    if (isNaN(numVal) || !isFinite(numVal) || isNaN(numMean) || !isFinite(numMean)) {
         return 0;
     }
 
@@ -83,54 +106,189 @@ export function calculateZScore(value, mean, standardDeviation) {
 }
 
 /**
- * Detects anomalies in a list of transactions based on amount Z-Scores.
- * A transaction is marked as an anomaly when its absolute Z-Score is strictly greater than 2.
- * Pure function: does not mutate the original transactions array or objects.
+ * Groups an array of transaction objects by their category.
+ * Safely normalizes category names (trims whitespace, defaults to 'Uncategorized').
+ * Pure function: does not mutate the input array or objects.
  *
- * @param {Array<Object>} transactions - List of transaction objects ({ id, title, amount, category, date }).
- * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold for anomaly cutoff.
- * @returns {Array<Object>} New array of transaction objects containing `isAnomaly` and `zScore`.
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @returns {Object.<string, Array<Object>>} Map of category names to transaction arrays.
+ */
+export function groupByCategory(transactions) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return {};
+    }
+
+    return transactions.reduce((groups, transaction) => {
+        if (!transaction || typeof transaction !== 'object') {
+            return groups;
+        }
+
+        const category = transaction.category && typeof transaction.category === 'string' && transaction.category.trim() !== ''
+            ? transaction.category.trim()
+            : 'Uncategorized';
+
+        if (!groups[category]) {
+            groups[category] = [];
+        }
+
+        groups[category].push(transaction);
+        return groups;
+    }, {});
+}
+
+/**
+ * Calculates statistical metrics (mean, standard deviation, count, total) for each category.
+ * Safely ignores non-numeric amounts.
+ *
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @returns {Object.<string, { mean: number, rawMean: number, standardDeviation: number, rawStandardDeviation: number, count: number, total: number, validAmounts: number[] }>}
+ */
+export function calculateCategoryStats(transactions) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return {};
+    }
+
+    const grouped = groupByCategory(transactions);
+    const stats = {};
+
+    for (const [category, txList] of Object.entries(grouped)) {
+        const validAmounts = txList
+            .map(t => {
+                if (!t || typeof t !== 'object' || t.amount === null || t.amount === undefined || typeof t.amount === 'symbol' || typeof t.amount === 'boolean') {
+                    return NaN;
+                }
+                return Number(t.amount);
+            })
+            .filter(amt => !isNaN(amt) && isFinite(amt));
+
+        const mean = calculateMean(validAmounts);
+        const standardDeviation = calculateStandardDeviation(validAmounts);
+        const total = validAmounts.reduce((sum, a) => sum + a, 0);
+
+        stats[category] = {
+            mean: Number(mean.toFixed(2)),
+            rawMean: mean,
+            standardDeviation: Number(standardDeviation.toFixed(2)),
+            rawStandardDeviation: standardDeviation,
+            count: validAmounts.length,
+            total: Number(total.toFixed(2)),
+            validAmounts
+        };
+    }
+
+    return stats;
+}
+
+/**
+ * Detects anomalies in a list of transactions by comparing each transaction
+ * against other transactions in the same category using Z-Score statistical analysis.
+ *
+ * Primary Anomaly Approach:
+ * Transactions -> Group by Category -> Category Mean & Std Dev -> Transaction Z-Score -> Flag (Z >= threshold)
+ *
+ * Safely handles:
+ * - Empty arrays and non-array inputs
+ * - Single transactions and small sample sizes (avoids false positives)
+ * - Zero standard deviation (e.g., identical amounts)
+ * - Missing or invalid categories (grouped under 'Uncategorized')
+ * - Invalid or non-numeric amounts
+ * - Preserves optional fields (such as `recurring`, `id`, `date`, `title`)
+ * - Pure function: does not mutate input objects or arrays
+ *
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold (default: 2, absolute Z >= threshold flagged).
+ * @returns {Array<Object>} New array of processed transaction objects with anomaly metadata.
  */
 export function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
     if (!Array.isArray(transactions) || transactions.length === 0) {
         return [];
     }
 
-    // Extract numerical amounts safely
-    const amounts = transactions.map(t => {
-        if (!t || typeof t !== 'object') {
-            return 0;
-        }
-        const amt = Number(t.amount);
-        return isNaN(amt) ? 0 : amt;
-    });
+    const numericThreshold = typeof threshold === 'number' && !isNaN(threshold) && isFinite(threshold)
+        ? Math.abs(threshold)
+        : ANOMALY_Z_THRESHOLD;
 
-    const mean = calculateMean(amounts);
-    const standardDeviation = calculateStandardDeviation(amounts);
+    // Compute category-level statistical baselines
+    const categoryStats = calculateCategoryStats(transactions);
 
-    return transactions.map((transaction, index) => {
+    return transactions.map(transaction => {
+        // Handle invalid transaction entries
         if (!transaction || typeof transaction !== 'object') {
             return {
                 isAnomaly: false,
-                zScore: 0
+                zScore: 0,
+                categoryMean: 0,
+                categoryStandardDeviation: 0,
+                anomalyReason: null
             };
         }
 
-        const amount = amounts[index];
-        const zScore = calculateZScore(amount, mean, standardDeviation);
-        const isAnomaly = Math.abs(zScore) > threshold;
+        const category = transaction.category && typeof transaction.category === 'string' && transaction.category.trim() !== ''
+            ? transaction.category.trim()
+            : 'Uncategorized';
+
+        // Validate transaction amount
+        const isInvalidAmount = transaction.amount === null ||
+            transaction.amount === undefined ||
+            typeof transaction.amount === 'symbol' ||
+            typeof transaction.amount === 'boolean' ||
+            isNaN(Number(transaction.amount)) ||
+            !isFinite(Number(transaction.amount));
+
+        if (isInvalidAmount) {
+            const catStats = categoryStats[category] || { mean: 0, standardDeviation: 0 };
+            return {
+                ...transaction,
+                isAnomaly: false,
+                zScore: 0,
+                categoryMean: catStats.mean || 0,
+                categoryStandardDeviation: catStats.standardDeviation || 0,
+                anomalyReason: null
+            };
+        }
+
+        const amount = Number(transaction.amount);
+        const stats = categoryStats[category];
+
+        // Insufficient data or zero variance check:
+        // When there are fewer than 2 valid comparable transactions in the category
+        // or standard deviation is 0, we avoid falsely flagging anomalies.
+        if (!stats || stats.count < 2 || stats.rawStandardDeviation === 0) {
+            return {
+                ...transaction,
+                isAnomaly: false,
+                zScore: 0,
+                categoryMean: stats ? stats.mean : amount,
+                categoryStandardDeviation: 0,
+                anomalyReason: null
+            };
+        }
+
+        // Calculate Z-Score relative to category mean and standard deviation
+        const zScoreRaw = calculateZScore(amount, stats.rawMean, stats.rawStandardDeviation);
+        const zScore = Number(zScoreRaw.toFixed(2));
+        const isAnomaly = Math.abs(zScoreRaw) >= numericThreshold;
+
+        let anomalyReason = null;
+        if (isAnomaly) {
+            const direction = zScoreRaw > 0 ? 'higher' : 'lower';
+            anomalyReason = `Unusually ${direction} expense for "${category}" ($${amount.toFixed(2)} vs category avg $${stats.mean.toFixed(2)}, Z-Score: ${zScore > 0 ? '+' : ''}${zScore.toFixed(2)})`;
+        }
 
         return {
             ...transaction,
             isAnomaly,
-            zScore
+            zScore,
+            categoryMean: stats.mean,
+            categoryStandardDeviation: stats.standardDeviation,
+            anomalyReason
         };
     });
 }
 
 /**
  * Counts the total number of anomalous transactions in a dataset.
- * Accepts either pre-analyzed transactions (with `isAnomaly` flag) or raw transactions.
+ * Accepts either pre-analyzed transactions (with `isAnomaly` boolean flag) or raw transactions.
  *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
@@ -141,7 +299,7 @@ export function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
         return 0;
     }
 
-    // If already analyzed (all items have boolean isAnomaly property), use existing flags
+    // Check if transactions are already processed with boolean isAnomaly flags
     const hasAnomalyFlags = transactions.every(
         t => t && typeof t === 'object' && typeof t.isAnomaly === 'boolean'
     );
@@ -153,17 +311,90 @@ export function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
     return analyzedList.filter(t => Boolean(t?.isAnomaly)).length;
 }
 
+/**
+ * Filters and returns only the anomalous transactions from a dataset.
+ * Accepts either pre-analyzed transactions or raw transactions.
+ *
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
+ * @returns {Array<Object>} Array containing only the anomalous transactions.
+ */
+export function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return [];
+    }
+
+    const hasAnomalyFlags = transactions.every(
+        t => t && typeof t === 'object' && typeof t.isAnomaly === 'boolean'
+    );
+
+    const analyzedList = hasAnomalyFlags
+        ? transactions
+        : detectAnomalies(transactions, threshold);
+
+    return analyzedList.filter(t => Boolean(t?.isAnomaly));
+}
+
+/**
+ * Generates a comprehensive summary of anomalies across categories.
+ *
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
+ * @returns {{ totalTransactions: number, anomalyCount: number, anomalyRate: number, anomalies: Array<Object>, anomaliesByCategory: Object.<string, number> }}
+ */
+export function getAnomalySummary(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return {
+            totalTransactions: 0,
+            anomalyCount: 0,
+            anomalyRate: 0,
+            anomalies: [],
+            anomaliesByCategory: {}
+        };
+    }
+
+    const analyzedList = detectAnomalies(transactions, threshold);
+    const anomalies = analyzedList.filter(t => Boolean(t.isAnomaly));
+    const anomalyCount = anomalies.length;
+    const totalTransactions = analyzedList.length;
+    const anomalyRate = totalTransactions > 0 ? Number(((anomalyCount / totalTransactions) * 100).toFixed(2)) : 0;
+
+    const anomaliesByCategory = anomalies.reduce((acc, t) => {
+        const cat = t.category || 'Uncategorized';
+        acc[cat] = (acc[cat] || 0) + 1;
+        return acc;
+    }, {});
+
+    return {
+        totalTransactions,
+        anomalyCount,
+        anomalyRate,
+        anomalies,
+        anomaliesByCategory
+    };
+}
+
 // Aliases for convenience and flexible naming conventions
 export const getAnomalyCount = countAnomalies;
 export const identifyAnomalies = detectAnomalies;
+export const detectCategoryAnomalies = detectAnomalies;
+export const filterAnomalies = getAnomalies;
+export const getCategoryStatistics = calculateCategoryStats;
 
 export default {
     ANOMALY_Z_THRESHOLD,
     calculateMean,
     calculateStandardDeviation,
     calculateZScore,
+    groupByCategory,
+    calculateCategoryStats,
+    getCategoryStatistics,
     detectAnomalies,
     identifyAnomalies,
+    detectCategoryAnomalies,
     countAnomalies,
-    getAnomalyCount
+    getAnomalyCount,
+    getAnomalies,
+    filterAnomalies,
+    getAnomalySummary
 };
