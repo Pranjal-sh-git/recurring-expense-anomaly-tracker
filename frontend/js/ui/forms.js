@@ -38,7 +38,7 @@ export function initForm() {
             </div>
 
             <div class="form-group">
-                <label for="tx-amount">Amount ($)</label>
+                <label for="tx-amount">Amount (₹)</label>
                 <input
                     type="number"
                     id="tx-amount"
@@ -60,6 +60,7 @@ export function initForm() {
                     <option value="Rent">Rent</option>
                     <option value="Groceries">Groceries</option>
                     <option value="Dining">Dining</option>
+                    <option value="Shopping">Shopping</option>
                     <option value="Transport">Transport</option>
                     <option value="Healthcare">Healthcare</option>
                     <option value="Other">Other</option>
@@ -89,14 +90,6 @@ export function initForm() {
             <button type="submit" class="btn-submit" id="btn-add-transaction">Add Transaction</button>
         </form>
     `;
-
-    // Prevent default browser form submission; actual handling is in app.js.
-    const form = document.getElementById('expense-form');
-    if (form) {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-        });
-    }
 }
 
 /**
@@ -125,6 +118,9 @@ export function getFormValues() {
     };
 }
 
+// ─── Internal timer for success feedback ───────────────────────────────────────
+let successTimer = null;
+
 /**
  * Clear and reset all transaction form fields to their default state.
  * Also hides any visible validation error or success message.
@@ -133,6 +129,11 @@ export function resetForm() {
     const form = document.getElementById('expense-form');
     if (form) {
         form.reset();
+    }
+
+    if (successTimer) {
+        clearTimeout(successTimer);
+        successTimer = null;
     }
 
     // Hide both feedback banners
@@ -155,6 +156,11 @@ export function resetForm() {
  * @param {string} message - The error text to display.
  */
 export function showFormError(message) {
+    if (successTimer) {
+        clearTimeout(successTimer);
+        successTimer = null;
+    }
+
     // Dismiss success first
     const successEl = document.getElementById('form-success');
     if (successEl) {
@@ -175,6 +181,11 @@ export function showFormError(message) {
  * @param {string} message - The success text to display.
  */
 export function showFormSuccess(message) {
+    if (successTimer) {
+        clearTimeout(successTimer);
+        successTimer = null;
+    }
+
     // Dismiss error first
     const errorEl = document.getElementById('form-error');
     if (errorEl) {
@@ -188,9 +199,11 @@ export function showFormSuccess(message) {
         successEl.style.display = 'block';
 
         // Auto-hide after 3 s
-        setTimeout(() => {
+        successTimer = setTimeout(() => {
             successEl.style.display = 'none';
             successEl.textContent = '';
+            successTimer = null;
         }, 3000);
     }
 }
+

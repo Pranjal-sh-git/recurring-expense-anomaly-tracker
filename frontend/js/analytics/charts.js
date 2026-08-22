@@ -266,36 +266,102 @@ function renderDailyTrendFallback(container, chartData) {
 
   if (chartData.labels.length === 0 || maxVal === 0) {
     container.innerHTML = `
-      <div class="chart-empty-state" style="text-align:center; padding:2rem 1rem; color:var(--text-muted, #94a3b8); font-style:italic;">
+      <div class="chart-empty-state" style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted, #94a3b8); font-style:italic;">
         No daily spending trend data available
       </div>
     `;
     return;
   }
 
-  const barsHtml = chartData.labels.map((label, idx) => {
-    const value = chartData.data[idx] || 0;
-    const heightPercent = maxVal > 0 ? ((value / maxVal) * 100).toFixed(1) : 0;
-    const formattedAmt = formatCurrency(value);
+  const n = chartData.labels.length;
+  const svgWidth = Math.max(480, n * 85);
+  const svgHeight = 200;
+  const padX = 45;
+  const padTop = 35;
+  const padBottom = 40;
+  const chartH = svgHeight - padTop - padBottom;
+  const chartW = svgWidth - padX * 2;
 
-    return `
-      <div class="chart-daily-col" style="flex:1; display:flex; flex-direction:column; align-items:center; gap:0.25rem; min-width:32px;">
-        <span style="font-size:0.75rem; color:var(--text-muted, #94a3b8); transform:rotate(-45deg); white-space:nowrap; margin-bottom:0.25rem;">
-          ${label.length > 5 ? label.substring(5) : label}
-        </span>
-        <div style="height:120px; width:100%; max-width:24px; background-color:rgba(148,163,184,0.1); border-radius:4px; display:flex; align-items:flex-end; overflow:hidden;" title="${label}: ${formattedAmt}">
-          <div style="background:linear-gradient(180deg, #6366f1, #06b6d4); width:100%; height:${heightPercent}%; border-radius:4px 4px 0 0; transition:height 0.3s ease;"></div>
-        </div>
-        <span style="font-size:0.7rem; font-weight:600; margin-top:0.25rem;">${formattedAmt}</span>
-      </div>
-    `;
-  }).join('');
+  // Calculate coordinates for each data point
+  const points = chartData.labels.map((label, idx) => {
+    const val = chartData.data[idx] || 0;
+    const x = n > 1 ? padX + (idx / (n - 1)) * chartW : svgWidth / 2;
+    const ratio = maxVal > 0 ? val / maxVal : 0;
+    const y = padTop + (1 - ratio) * chartH;
+
+    let displayDate = label;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(label)) {
+      const [y, m, d] = label.split('-');
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const mIdx = parseInt(m, 10) - 1;
+      displayDate = `${parseInt(d, 10)} ${monthNames[mIdx] || m}`;
+    } else if (/^\d{2}-\d{2}$/.test(label)) {
+      const [m, d] = label.split('-');
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const mIdx = parseInt(m, 10) - 1;
+      displayDate = `${parseInt(d, 10)} ${monthNames[mIdx] || m}`;
+    }
+
+    return { x, y, val, label, displayDate, formatted: formatCurrency(val) };
+  });
+
+  // Build SVG path commands
+  let lineD = '';
+  let areaD = '';
+
+  if (n === 1) {
+    const p = points[0];
+    lineD = `M ${p.x - 30} ${p.y} L ${p.x + 30} ${p.y}`;
+    areaD = `M ${p.x - 30} ${svgHeight - padBottom} L ${p.x - 30} ${p.y} L ${p.x + 30} ${p.y} L ${p.x + 30} ${svgHeight - padBottom} Z`;
+  } else {
+    // Smooth Bezier curve
+    lineD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const cpX = (p0.x + p1.x) / 2;
+      lineD += ` C ${cpX} ${p0.y}, ${cpX} ${p1.y}, ${p1.x} ${p1.y}`;
+    }
+
+    const firstX = points[0].x;
+    const lastX = points[points.length - 1].x;
+    const groundY = svgHeight - padBottom;
+    areaD = `${lineD} L ${lastX} ${groundY} L ${firstX} ${groundY} Z`;
+  }
+
+  // Data node circles & text labels
+  const nodesSvg = points.map((p) => `
+    <g class="chart-node">
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="#ffffff" stroke="#6366f1" stroke-width="3"/>
+      <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="700" font-family="Inter, system-ui, sans-serif">${p.formatted}</text>
+      <text x="${p.x}" y="${svgHeight - 12}" text-anchor="middle" fill="#475569" font-size="11" font-weight="600" font-family="Inter, system-ui, sans-serif">${p.displayDate}</text>
+    </g>
+  `).join('');
+
+  const gradientId = `trendGrad_${Math.random().toString(36).substring(2, 7)}`;
 
   container.innerHTML = `
-    <div class="chart-daily-fallback" style="padding:1rem; overflow-x:auto;">
-      <div style="display:flex; gap:0.5rem; align-items:flex-end; min-height:160px; padding-bottom:1rem;">
-        ${barsHtml}
-      </div>
+    <div class="chart-daily-svg-wrap" style="width:100%; overflow-x:auto; padding:0.5rem 0;">
+      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; height:200px; min-width:${svgWidth}px; display:block;">
+        <defs>
+          <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Horizontal grid lines -->
+        <line x1="${padX}" y1="${padTop}" x2="${svgWidth - padX}" y2="${padTop}" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+        <line x1="${padX}" y1="${padTop + chartH / 2}" x2="${svgWidth - padX}" y2="${padTop + chartH / 2}" stroke="#f1f5f9" stroke-dasharray="3,3"/>
+        <line x1="${padX}" y1="${svgHeight - padBottom}" x2="${svgWidth - padX}" y2="${svgHeight - padBottom}" stroke="#e2e8f0"/>
+
+        <!-- Area fill & Line path -->
+        <path d="${areaD}" fill="url(#${gradientId})" />
+        <path d="${lineD}" fill="none" stroke="#6366f1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Data nodes -->
+        ${nodesSvg}
+      </svg>
     </div>
   `;
 }

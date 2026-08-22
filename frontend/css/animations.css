@@ -4,28 +4,25 @@
    All animations respect the prefers-reduced-motion media query.
    ============================================================ */
 
+
 /* ─── Keyframes ──────────────────────────────────────────────────────────────── */
 
+/* Generic fade-up — used by table rows, form feedback, empty states */
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
 }
 
+/* Slide in from above — legacy, kept for compatibility */
 @keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-8px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Page section transition — used by .page-section--active */
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
 }
 
 /* Quick highlight flash for newly-inserted rows */
@@ -36,60 +33,95 @@
 
 /* Pulse glow for anomaly rows on first render */
 @keyframes anomalyPulse {
-    0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
-    70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.3); }
+    70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);   }
+    100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0);   }
 }
 
-/* ─── Page-level entrance animations ─────────────────────────────────────────── */
-
-.app-header {
-    animation: slideInDown 0.35s ease-out both;
+/* Sidebar brand entrance */
+@keyframes sidebarBrandIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0);     }
 }
 
-/* Staggered summary cards */
-.summary-card {
-    animation: fadeIn 0.4s ease-out both;
+/* Metric card stagger entrance */
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
-.summary-card:nth-child(1) { animation-delay: 0.05s; }
-.summary-card:nth-child(2) { animation-delay: 0.10s; }
-.summary-card:nth-child(3) { animation-delay: 0.15s; }
-.summary-card:nth-child(4) { animation-delay: 0.20s; }
 
-/* Form and table panels */
-.transaction-entry,
-.transaction-history {
-    animation: fadeIn 0.45s ease-out 0.1s both;
+/* ─── App shell entrance ─────────────────────────────────────────────────────── */
+
+.sidebar-brand {
+    animation: sidebarBrandIn 0.4s ease-out both;
 }
+
+.top-navbar {
+    animation: slideInDown 0.3s ease-out both;
+}
+
+
+/* ─── Metric card staggered entrance ─────────────────────────────────────────── */
+
+.metric-card {
+    animation: cardIn 0.4s ease-out both;
+}
+
+.metric-card:nth-child(1) { animation-delay: 0.04s; }
+.metric-card:nth-child(2) { animation-delay: 0.09s; }
+.metric-card:nth-child(3) { animation-delay: 0.14s; }
+.metric-card:nth-child(4) { animation-delay: 0.19s; }
+.metric-card:nth-child(5) { animation-delay: 0.24s; }
+
+
+/* ─── Chart and panel entrance ───────────────────────────────────────────────── */
+
+.chart-card,
+.recent-panel {
+    animation: fadeIn 0.45s ease-out 0.2s both;
+}
+
 
 /* ─── Table row animations ───────────────────────────────────────────────────── */
 
-/* Every row slides in; keep delay short so the list feels snappy */
-.tx-row {
-    animation: fadeIn 0.25s ease-out both;
-}
+.tx-row         { animation: fadeIn 0.22s ease-out both; }
+.empty-state-row { animation: fadeIn 0.32s ease-out both; }
 
-/* Empty state fades in gently */
-.empty-state-row {
-    animation: fadeIn 0.35s ease-out both;
-}
 
-/* ─── Form feedback animations ───────────────────────────────────────────────── */
+/* ─── Form feedback ──────────────────────────────────────────────────────────── */
 
 .form-error,
 .form-success-msg {
     animation: fadeIn 0.2s ease-out both;
 }
 
-/* ─── Respect reduced-motion preference ─────────────────────────────────────── */
+
+/* ─── Recent transaction items ───────────────────────────────────────────────── */
+
+.recent-tx-item {
+    animation: fadeIn 0.28s ease-out both;
+}
+
+
+/* ─── Anomaly item entrance ───────────────────────────────────────────────────── */
+
+@keyframes anomalyItemIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0);    }
+}
+
+.anomaly-item { animation: anomalyItemIn 0.28s ease-out both; }
+
+
+/* ─── Respect reduced-motion preference ──────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+        animation-duration:        0.01ms !important;
+        animation-iteration-count: 1      !important;
+        transition-duration:       0.01ms !important;
     }
 }

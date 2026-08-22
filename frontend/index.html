@@ -4,69 +4,417 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Track recurring expenses and automatically detect spending anomalies using statistical analysis.">
-    <title>Recurring Expense Anomaly Tracker</title>
+    <title>ExpenseTrack — Recurring Expense Anomaly Tracker</title>
 
     <!-- Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/animations.css">
+
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header class="app-header">
-        <h1>Recurring Expense Anomaly Tracker</h1>
-    </header>
 
-    <main class="app-container">
-        <!-- Dashboard Summary Section -->
-        <section id="dashboard-summary" class="dashboard-summary">
-            <h2 class="section-title">Dashboard Summary</h2>
-            <div class="summary-grid">
-                <div class="summary-card" id="total-expenses-card">
-                    <h3>Total Expenses</h3>
-                    <div class="summary-value" id="total-expenses-value">--</div>
+    <!-- Mobile sidebar backdrop -->
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+    <div class="app-shell">
+
+        <!-- ═══════════════════════════════════════════
+             LEFT SIDEBAR
+        ═══════════════════════════════════════════ -->
+        <aside class="sidebar" id="app-sidebar" role="navigation" aria-label="Main navigation">
+
+            <!-- Brand / Logo -->
+            <div class="sidebar-brand">
+                <div class="brand-icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17l10 5 10-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12l10 5 10-5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </div>
-                <div class="summary-card" id="total-transactions-card">
-                    <h3>Total Transactions</h3>
-                    <div class="summary-value" id="total-transactions-value">--</div>
-                </div>
-                <div class="summary-card" id="anomalies-detected-card">
-                    <h3>Anomalies Detected</h3>
-                    <div class="summary-value" id="anomalies-value">--</div>
-                </div>
-                <div class="summary-card" id="highest-spending-card">
-                    <h3>Highest Spending Category</h3>
-                    <div class="summary-value" id="highest-category-value">--</div>
+                <div class="brand-text">
+                    <span class="brand-name">ExpenseTrack</span>
+                    <span class="brand-tagline">Anomaly Tracker</span>
                 </div>
             </div>
-        </section>
 
-        <div class="content-layout">
-            <!-- Transaction Entry Section -->
-            <section id="transaction-entry" class="transaction-entry">
-                <h2 class="section-title">Transaction Entry</h2>
-                <div id="transaction-form-container" class="placeholder-container">
-                    <!-- Form will be rendered here by forms.js -->
-                    <p class="placeholder-text">Loading transaction form...</p>
-                </div>
-            </section>
+            <!-- Nav links -->
+            <nav class="sidebar-nav" aria-label="Sections">
+                <p class="nav-section-label">Main Menu</p>
+                <ul class="nav-list" role="list">
 
-            <!-- Transaction History Section -->
-            <section id="transaction-history" class="transaction-history">
-                <h2 class="section-title">Transaction History</h2>
-                <div id="transaction-table-container" class="placeholder-container">
-                    <!-- Table will be rendered here by transactionTable.js -->
-                    <p class="placeholder-text">Loading transaction history...</p>
+                    <li role="listitem">
+                        <button class="nav-link active" data-section="overview" id="nav-overview" aria-current="page">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                                <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                            </svg>
+                            <span>Overview</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="analytics" id="nav-analytics">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                            <span>Analytics</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="transactions" id="nav-transactions">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                                <rect x="9" y="3" width="6" height="4" rx="1"/>
+                                <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+                            </svg>
+                            <span>Transactions</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="anomaly-insights" id="nav-anomaly-insights">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <span>Anomaly Insights</span>
+                        </button>
+                    </li>
+
+                </ul>
+            </nav>
+
+            <!-- Footer stats -->
+            <div class="sidebar-footer">
+                <div class="sidebar-stats">
+                    <div class="sidebar-stat">
+                        <span class="sidebar-stat-label">Live Records</span>
+                        <span class="sidebar-stat-value" id="sidebar-record-count">0</span>
+                    </div>
+                    <div class="sidebar-stat">
+                        <span class="sidebar-stat-label">Anomalies</span>
+                        <span class="sidebar-stat-value sidebar-stat-value--danger" id="sidebar-anomaly-count">0</span>
+                    </div>
                 </div>
-            </section>
+            </div>
+
+        </aside>
+        <!-- /aside.sidebar -->
+
+
+        <!-- ═══════════════════════════════════════════
+             MAIN AREA  (navbar + scrollable content)
+        ═══════════════════════════════════════════ -->
+        <div class="main-area" id="main-area">
+
+            <!-- ── Top Navbar ── -->
+            <header class="top-navbar">
+                <div class="navbar-left">
+                    <!-- Hamburger (mobile only) -->
+                    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation sidebar" aria-controls="app-sidebar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                            <line x1="3" y1="6"  x2="21" y2="6"/>
+                            <line x1="3" y1="12" x2="21" y2="12"/>
+                            <line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+
+                    <div class="navbar-page-info">
+                        <h1 class="navbar-page-title" id="page-title">Overview</h1>
+                        <p class="navbar-page-subtitle" id="page-subtitle">Your expense summary at a glance</p>
+                    </div>
+                </div>
+
+                <div class="navbar-right">
+                    <button class="btn-navbar-primary" id="btn-add-transaction-nav" title="Go to Transactions to add a new entry">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8"  y1="12" x2="16" y2="12"/>
+                        </svg>
+                        <span>Add Transaction</span>
+                    </button>
+                </div>
+            </header>
+            <!-- /header.top-navbar -->
+
+
+            <!-- ── Scrollable Content ── -->
+            <main class="content-area" id="main-content">
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: OVERVIEW  (default active)
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-overview"
+                    class="page-section page-section--active"
+                    data-section="overview"
+                    aria-label="Overview dashboard"
+                >
+
+                    <!-- ── Metric Cards Row ── -->
+                    <div class="metrics-grid">
+
+                        <!-- Total Expenses -->
+                        <div class="metric-card" id="total-expenses-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--indigo" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                                        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                                        <line x1="12" y1="12" x2="12" y2="16"/>
+                                        <line x1="10" y1="14" x2="14" y2="14"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Total Expenses</span>
+                            </div>
+                            <div class="metric-value metric-value--indigo" id="total-expenses-value">₹0.00</div>
+                            <div class="metric-sub">All categories combined</div>
+                        </div>
+
+                        <!-- Total Transactions -->
+                        <div class="metric-card" id="total-transactions-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--blue" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Total Transactions</span>
+                            </div>
+                            <div class="metric-value" id="total-transactions-value">0</div>
+                            <div class="metric-sub">Recorded entries</div>
+                        </div>
+
+                        <!-- Anomalies Detected -->
+                        <div class="metric-card metric-card--alert" id="anomalies-detected-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--danger" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Anomalies Detected</span>
+                            </div>
+                            <div class="metric-value metric-value--danger" id="anomalies-value">0</div>
+                            <div class="metric-sub">Unusual transactions flagged</div>
+                        </div>
+
+                        <!-- Top Category -->
+                        <div class="metric-card" id="highest-spending-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--purple" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Top Category</span>
+                            </div>
+                            <div class="metric-value metric-value--sm" id="highest-category-value">--</div>
+                            <div class="metric-sub">Highest spending area</div>
+                        </div>
+
+                        <!-- Recurring -->
+                        <div class="metric-card" id="recurring-count-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--green" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <polyline points="1 20 1 14 7 14"/>
+                                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Recurring Expenses</span>
+                            </div>
+                            <div class="metric-value metric-value--green" id="recurring-count-value">0</div>
+                            <div class="metric-sub">Repeat expense entries</div>
+                        </div>
+
+                    </div>
+                    <!-- /metrics-grid -->
+
+
+                    <!-- ── Charts Row ── -->
+                    <div class="charts-grid">
+
+                        <div class="chart-card chart-card--wide">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Daily Spending Trend</h2>
+                                <span class="chart-card-desc">Spending activity over time</span>
+                            </div>
+                            <!-- charts.js populates this by ID -->
+                            <div id="daily-chart-container" class="chart-body"></div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Category Breakdown</h2>
+                                <span class="chart-card-desc">Distribution across categories</span>
+                            </div>
+                            <!-- charts.js populates this by ID -->
+                            <div id="category-chart-container" class="chart-body"></div>
+                        </div>
+
+                    </div>
+                    <!-- /charts-grid -->
+
+
+                    <!-- ── Recent Transactions Panel ── -->
+                    <div class="recent-panel">
+                        <div class="recent-panel-header">
+                            <h2 class="recent-panel-title">Recent Transactions</h2>
+                            <button class="btn-text-action" id="btn-view-all-transactions">
+                                View All
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                    <polyline points="12 5 19 12 12 19"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- dashboard.js populates this by ID -->
+                        <div id="recent-transactions-list"></div>
+                    </div>
+                    <!-- /recent-panel -->
+
+                </section>
+                <!-- /section#section-overview -->
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: ANALYTICS
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-analytics"
+                    class="page-section"
+                    data-section="analytics"
+                    aria-label="Analytics dashboard"
+                >
+
+                    <!-- Summary metric cards — rendered by analyticsView.js -->
+                    <div class="analytics-metrics-grid" id="analytics-summary-cards"></div>
+
+                    <!-- Charts row -->
+                    <div class="analytics-charts-grid">
+                        <div class="chart-card chart-card--wide">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Daily Spending Trend</h2>
+                                <span class="chart-card-desc">Spending activity over time</span>
+                            </div>
+                            <div id="analytics-daily-chart" class="chart-body"></div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Spending by Category</h2>
+                                <span class="chart-card-desc">Horizontal category comparison</span>
+                            </div>
+                            <div id="analytics-category-chart" class="chart-body"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recurring vs One-off bar — rendered by analyticsView.js -->
+                    <div class="analytics-section-card" id="analytics-recurring-bar"></div>
+
+                    <!-- Category insights table — rendered by analyticsView.js -->
+                    <div class="analytics-section-card analytics-section-card--table">
+                        <div class="analytics-table-header">
+                            <h2 class="chart-card-title">Category Insights</h2>
+                            <span class="chart-card-desc">Sorted by highest total spend</span>
+                        </div>
+                        <div id="analytics-category-table"></div>
+                    </div>
+
+                </section>
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: TRANSACTIONS  (fully functional)
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-transactions"
+                    class="page-section"
+                    data-section="transactions"
+                    aria-label="Transactions"
+                >
+                    <div class="transactions-dashboard-grid">
+
+                        <!-- Left Column: Transaction Entry Form -->
+                        <div class="transactions-form-card">
+                            <div class="card-header">
+                                <h2 class="card-title">Add Transaction</h2>
+                                <span class="card-desc">Enter expense details to track and analyze</span>
+                            </div>
+                            <div id="transaction-form-container">
+                                <p class="placeholder-text">Loading transaction form…</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Filter Toolbar & History Table -->
+                        <div class="transactions-table-card">
+                            <div class="card-header">
+                                <h2 class="card-title">Transaction History</h2>
+                                <span class="card-desc">Search, filter, and review all recorded expenses</span>
+                            </div>
+
+                            <!-- Filter Toolbar — rendered by transactionFilters.js -->
+                            <div id="transaction-filter-container"></div>
+
+                            <!-- Transaction Table — rendered by transactionTable.js -->
+                            <div id="transaction-table-container">
+                                <p class="placeholder-text">Loading transaction history…</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: ANOMALY INSIGHTS
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-anomaly-insights"
+                    class="page-section"
+                    data-section="anomaly-insights"
+                    aria-label="Anomaly Insights"
+                >
+
+                    <!-- Anomaly stat cards — rendered by anomalyView.js -->
+                    <div class="anomaly-stats-grid" id="anomaly-stat-cards"></div>
+
+                    <!-- Flagged transaction list — rendered by anomalyView.js -->
+                    <div class="analytics-section-card" id="anomaly-list"></div>
+
+                    <!-- How it works panel — rendered by anomalyView.js -->
+                    <div id="anomaly-how-it-works"></div>
+
+                </section>
+
+
+            </main>
+            <!-- /main.content-area -->
+
         </div>
-    </main>
+        <!-- /div.main-area -->
+
+    </div>
+    <!-- /div.app-shell -->
 
     <!-- Application entry point -->
     <script type="module" src="./js/app.js"></script>
+
 </body>
 </html>

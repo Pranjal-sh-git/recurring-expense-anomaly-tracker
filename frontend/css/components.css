@@ -2,8 +2,10 @@
    components.css
    Component-level styles that extend the base design system.
    Covers: badges, table helpers, form feedback, empty state,
-           delete button, and anomaly row highlighting.
+           delete button, anomaly row highlighting,
+           and new metric card accent overrides.
    ============================================================ */
+
 
 /* ─── Badges ─────────────────────────────────────────────────────────────────── */
 
@@ -13,8 +15,8 @@
     gap: 0.2rem;
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.7rem;
+    font-weight: 700;
     letter-spacing: 0.02em;
     white-space: nowrap;
     line-height: 1.4;
@@ -48,6 +50,14 @@
     border: 1px solid #e2e8f0;
 }
 
+/* Category — soft purple/slate */
+.badge-category {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+}
+
+
 /* ─── Anomaly row highlight ──────────────────────────────────────────────────── */
 
 .row-anomaly {
@@ -57,6 +67,7 @@
 .row-anomaly:hover {
     background-color: #fee2e2 !important;
 }
+
 
 /* ─── Delete button ──────────────────────────────────────────────────────────── */
 
@@ -84,6 +95,7 @@
     color: #dc2626;
 }
 
+
 /* ─── Transaction table cell helpers ─────────────────────────────────────────── */
 
 .tx-title {
@@ -107,6 +119,7 @@
     text-align: center;
 }
 
+
 /* ─── Empty state ────────────────────────────────────────────────────────────── */
 
 .empty-state-cell {
@@ -125,7 +138,7 @@
     font-size: 2.5rem;
     line-height: 1;
     margin-bottom: 0.25rem;
-    opacity: 0.6;
+    opacity: 0.55;
 }
 
 .empty-state-text {
@@ -140,11 +153,12 @@
     font-style: italic;
 }
 
+
 /* ─── Form feedback messages ─────────────────────────────────────────────────── */
 
 .form-error {
     display: none;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     color: #dc2626;
     background-color: #fef2f2;
     border: 1px solid #fecaca;
@@ -155,7 +169,7 @@
 
 .form-success-msg {
     display: none;
-    font-size: 0.85rem;
+    font-size: 0.83rem;
     color: #16a34a;
     background-color: #f0fdf4;
     border: 1px solid #bbf7d0;
@@ -163,6 +177,7 @@
     padding: 0.5rem 0.75rem;
     margin-top: 0.25rem;
 }
+
 
 /* ─── Inline checkbox form-group ─────────────────────────────────────────────── */
 
@@ -185,13 +200,12 @@
     user-select: none;
 }
 
-/* ─── Dashboard card accent colours ─────────────────────────────────────────── */
 
-/* Already styled in main.css; these selectors add extra polish */
-#anomalies-detected-card {
-    border-top: 3px solid var(--danger);
-}
+/* ─── Metric card accent overrides ───────────────────────────────────────────── */
+/* Top border is handled via .metric-card--alert::before in main.css.
+   These selectors add additional per-card polish. */
 
-#total-expenses-card {
-    border-top: 3px solid var(--primary);
-}
+#total-expenses-card::before    { background: var(--color-indigo); }
+#total-transactions-card::before { background: var(--color-blue);  }
+#highest-spending-card::before  { background: var(--color-purple); }
+#recurring-count-card::before   { background: var(--color-green);  }

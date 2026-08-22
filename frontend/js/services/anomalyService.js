@@ -272,7 +272,7 @@ export function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
         let anomalyReason = null;
         if (isAnomaly) {
             const direction = zScoreRaw > 0 ? 'higher' : 'lower';
-            anomalyReason = `Unusually ${direction} expense for "${category}" ($${amount.toFixed(2)} vs category avg $${stats.mean.toFixed(2)}, Z-Score: ${zScore > 0 ? '+' : ''}${zScore.toFixed(2)})`;
+            anomalyReason = `Unusually ${direction} expense for "${category}" (₹${amount.toFixed(2)} vs category avg ₹${stats.mean.toFixed(2)}, Z-Score: ${zScore > 0 ? '+' : ''}${zScore.toFixed(2)})`;
         }
 
         return {

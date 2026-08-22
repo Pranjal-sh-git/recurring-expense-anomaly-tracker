@@ -12,7 +12,7 @@
  * @param {string} [locale='en-US'] - The BCP 47 language tag (e.g., 'en-US', 'en-IN').
  * @returns {string} Formatted currency string (e.g., "$120.00", "₹120.00").
  */
-export function formatCurrency(amount, currency = 'USD', locale = 'en-US') {
+export function formatCurrency(amount, currency = 'INR', locale = 'en-IN') {
   if (amount === null || amount === undefined || amount === '' || typeof amount === 'symbol') {
     amount = 0;
   }
@@ -38,8 +38,8 @@ export function formatCurrency(amount, currency = 'USD', locale = 'en-US') {
     }).format(validAmount);
   } catch (error) {
     // Robust fallback for unsupported locales or currency codes
-    if (currency === 'INR') {
-      return `₹${validAmount.toFixed(2)}`;
+    if (currency === 'USD') {
+      return `$${validAmount.toFixed(2)}`;
     }
     if (currency === 'EUR') {
       return `€${validAmount.toFixed(2)}`;
@@ -47,7 +47,7 @@ export function formatCurrency(amount, currency = 'USD', locale = 'en-US') {
     if (currency === 'GBP') {
       return `£${validAmount.toFixed(2)}`;
     }
-    return `$${validAmount.toFixed(2)}`;
+    return `₹${validAmount.toFixed(2)}`;
   }
 }
 
