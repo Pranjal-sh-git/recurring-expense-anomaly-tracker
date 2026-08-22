@@ -1,10 +1,92 @@
 /**
- * Analytics Service for calculating expense metrics and aggregations.
- * Phase 1 - Day 2 Foundation
+ * Analytics Service for calculating expense metrics, aggregations, and chart data.
+ * Member 4 - Analytics and Formatters Sprint
  */
 
 /**
- * Calculate the total sum of all transaction amounts.
+ * Safely parse and validate a numeric amount from a transaction object.
+ *
+ * @param {Object} transaction - Transaction object.
+ * @returns {number} Valid numeric amount (>= 0), or 0 if invalid.
+ */
+function extractValidAmount(transaction) {
+  if (!transaction || typeof transaction !== 'object') {
+    return 0;
+  }
+
+  let rawAmount = transaction.amount;
+  if (rawAmount === null || rawAmount === undefined || typeof rawAmount === 'symbol') {
+    return 0;
+  }
+
+  let numericAmount;
+  if (typeof rawAmount === 'string') {
+    const cleaned = rawAmount.replace(/[^0-9.-]+/g, '');
+    numericAmount = Number(cleaned);
+  } else {
+    numericAmount = Number(rawAmount);
+  }
+
+  return (!isNaN(numericAmount) && isFinite(numericAmount) && numericAmount >= 0)
+    ? numericAmount
+    : 0;
+}
+
+/**
+ * Safely extract a formatted YYYY-MM-DD date key from a transaction object.
+ *
+ * @param {Object} transaction - Transaction object.
+ * @returns {string} Date string in YYYY-MM-DD format or 'Unknown'.
+ */
+function extractDateKey(transaction) {
+  if (!transaction || typeof transaction !== 'object' || !transaction.date) {
+    return 'Unknown';
+  }
+
+  const rawDate = transaction.date;
+
+  if (typeof rawDate === 'string') {
+    const trimmed = rawDate.trim();
+    if (!trimmed) {
+      return 'Unknown';
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.substring(0, 10);
+    }
+    const parsedTimestamp = Date.parse(trimmed);
+    if (!isNaN(parsedTimestamp)) {
+      const d = new Date(parsedTimestamp);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return trimmed;
+  }
+
+  if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+    const year = rawDate.getFullYear();
+    const month = String(rawDate.getMonth() + 1).padStart(2, '0');
+    const day = String(rawDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof rawDate === 'number' && !isNaN(rawDate)) {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  return 'Unknown';
+}
+
+/**
+ * Calculate the total of all valid transaction amounts.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {number} Total expenses sum (rounded to 2 decimal places).
  */
@@ -14,30 +96,29 @@ export function calculateTotalExpenses(transactions) {
   }
 
   const total = transactions.reduce((sum, transaction) => {
-    if (!transaction || typeof transaction !== 'object') {
-      return sum;
-    }
-    const amount = Number(transaction.amount);
-    return sum + (isNaN(amount) || !isFinite(amount) ? 0 : amount);
+    return sum + extractValidAmount(transaction);
   }, 0);
 
   return Number(total.toFixed(2));
 }
 
 /**
- * Calculate the total number of transactions.
+ * Calculate the total count of valid transactions.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
- * @returns {number} Count of transactions.
+ * @returns {number} Count of valid transactions.
  */
 export function calculateTotalTransactions(transactions) {
-  if (!Array.isArray(transactions)) {
+  if (!Array.isArray(transactions) || transactions.length === 0) {
     return 0;
   }
-  return transactions.length;
+
+  return transactions.filter(t => t !== null && typeof t === 'object' && !Array.isArray(t)).length;
 }
 
 /**
  * Calculate spending totals grouped by category.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {Object.<string, number>} Object mapping category names to total spending.
  */
@@ -46,9 +127,11 @@ export function calculateCategoryTotals(transactions) {
     return {};
   }
 
-  return transactions.reduce((totals, transaction) => {
-    if (!transaction || typeof transaction !== 'object') {
-      return totals;
+  const totals = {};
+
+  for (const transaction of transactions) {
+    if (!transaction || typeof transaction !== 'object' || Array.isArray(transaction)) {
+      continue;
     }
 
     const category =
@@ -56,18 +139,17 @@ export function calculateCategoryTotals(transactions) {
         ? transaction.category.trim()
         : 'Uncategorized';
 
-    const amount = Number(transaction.amount);
-    const validAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
+    const amount = extractValidAmount(transaction);
+    const current = totals[category] || 0;
+    totals[category] = Number((current + amount).toFixed(2));
+  }
 
-    const currentTotal = totals[category] || 0;
-    totals[category] = Number((currentTotal + validAmount).toFixed(2));
-
-    return totals;
-  }, {});
+  return totals;
 }
 
 /**
  * Find the category with the highest total spending.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {{ category: string, amount: number, total: number } | null} The highest spending category info or null if empty.
  */
@@ -101,8 +183,48 @@ export function getHighestSpendingCategory(transactions) {
 }
 
 /**
+ * Calculate daily spending totals grouped chronologically by date.
+ *
+ * @param {Array<Object>} transactions - List of transaction objects.
+ * @returns {Object.<string, number>} Object mapping date strings to total spending.
+ */
+export function calculateDailyTotals(transactions) {
+  if (!Array.isArray(transactions) || transactions.length === 0) {
+    return {};
+  }
+
+  const dailyTotals = {};
+
+  for (const transaction of transactions) {
+    if (!transaction || typeof transaction !== 'object' || Array.isArray(transaction)) {
+      continue;
+    }
+
+    const dateKey = extractDateKey(transaction);
+    const amount = extractValidAmount(transaction);
+    const current = dailyTotals[dateKey] || 0;
+    dailyTotals[dateKey] = Number((current + amount).toFixed(2));
+  }
+
+  // Sort daily totals chronologically (Unknown placed at the end)
+  const sortedKeys = Object.keys(dailyTotals).sort((a, b) => {
+    if (a === 'Unknown') return 1;
+    if (b === 'Unknown') return -1;
+    return a.localeCompare(b);
+  });
+
+  const sortedTotals = {};
+  for (const key of sortedKeys) {
+    sortedTotals[key] = dailyTotals[key];
+  }
+
+  return sortedTotals;
+}
+
+/**
  * Generate a clean dashboard summary of key transaction metrics.
- * Note: Anomaly counts are excluded as they belong to the anomaly engine.
+ * Note: Anomaly counts are excluded as anomaly detection belongs to the anomaly engine.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {{ totalExpenses: number, totalTransactions: number, highestSpendingCategory: string | null }}
  */
@@ -125,7 +247,8 @@ export function generateDashboardSummary(transactions) {
 }
 
 /**
- * Return category spending in a structured format suitable for future chart rendering.
+ * Return category spending in a structured format suitable for chart rendering.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {{ labels: string[], data: number[], datasets: Array<{ label: string, data: number[] }>, breakdown: Array<{ category: string, amount: number, total: number }> }}
  */
@@ -167,51 +290,8 @@ export function getCategorySpendingData(transactions) {
 }
 
 /**
- * Calculate daily spending totals grouped chronologically by date.
- * @param {Array<Object>} transactions - List of transaction objects.
- * @returns {Object.<string, number>} Object mapping date strings to total spending.
- */
-export function calculateDailyTotals(transactions) {
-  if (!Array.isArray(transactions) || transactions.length === 0) {
-    return {};
-  }
-
-  const dailyTotals = transactions.reduce((totals, transaction) => {
-    if (!transaction || typeof transaction !== 'object') {
-      return totals;
-    }
-
-    let dateKey = 'Unknown';
-    if (transaction.date && typeof transaction.date === 'string' && transaction.date.trim() !== '') {
-      dateKey = transaction.date.trim();
-    } else if (transaction.date instanceof Date && !isNaN(transaction.date.getTime())) {
-      const year = transaction.date.getFullYear();
-      const month = String(transaction.date.getMonth() + 1).padStart(2, '0');
-      const day = String(transaction.date.getDate()).padStart(2, '0');
-      dateKey = `${year}-${month}-${day}`;
-    }
-
-    const amount = Number(transaction.amount);
-    const validAmount = isNaN(amount) || !isFinite(amount) ? 0 : amount;
-
-    const currentTotal = totals[dateKey] || 0;
-    totals[dateKey] = Number((currentTotal + validAmount).toFixed(2));
-
-    return totals;
-  }, {});
-
-  // Sort daily totals chronologically by date keys
-  const sortedKeys = Object.keys(dailyTotals).sort();
-  const sortedTotals = {};
-  for (const key of sortedKeys) {
-    sortedTotals[key] = dailyTotals[key];
-  }
-
-  return sortedTotals;
-}
-
-/**
- * Return daily spending in a structured format suitable for future time-series chart rendering.
+ * Return daily spending in a structured format suitable for time-series chart rendering.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {{ labels: string[], data: number[], datasets: Array<{ label: string, data: number[] }> }}
  */
@@ -247,6 +327,7 @@ export function getDailySpendingData(transactions) {
 
 /**
  * Get a complete summary of all analytics metrics.
+ *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @returns {Object} Comprehensive analytics metrics summary.
  */
@@ -263,7 +344,7 @@ export function getAnalyticsSummary(transactions) {
   };
 }
 
-// Aliases for convenience and flexible naming conventions
+// Aliases for convenience and backward compatibility
 export const getTotalExpenses = calculateTotalExpenses;
 export const getTotalTransactionCount = calculateTotalTransactions;
 export const getTransactionCount = calculateTotalTransactions;
@@ -277,6 +358,8 @@ export const getDailySpendingTotals = calculateDailyTotals;
 export const getDailyTotals = calculateDailyTotals;
 export const getDailySpending = calculateDailyTotals;
 export const calculateDailySpending = calculateDailyTotals;
+export const getDailySpendingDataAlias = getDailySpendingData;
+export const calculateDailySpendingData = getDailySpendingData;
 export const getDailyChartData = getDailySpendingData;
 
 export default {
@@ -301,6 +384,7 @@ export default {
   getDailySpending,
   calculateDailySpending,
   getDailySpendingData,
+  calculateDailySpendingData,
   getDailyChartData,
   getAnalyticsSummary
 };
