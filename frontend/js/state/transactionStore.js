@@ -1,65 +1,91 @@
-import { loadTransactions, saveTransactions } from '../services/dataService.js';
-import { validateTransaction } from '../utils/validators.js';
+/**
+ * transactionStore.js — In-Memory Transaction State
+ *
+ * The single source of truth for transactions at runtime.
+ * Delegates persistence to dataService.js and validation/normalization to validators.js.
+ *
+ * No DOM access. No analytics. No anomaly detection.
+ *
+ * Exports:
+ *   getTransactions()                   – Array (defensive copy)
+ *   addTransaction(tx)                  – Object (added tx) | throws on validation failure
+ *   deleteTransaction(id)               – boolean
+ *   setTransactions(txArray)            – void  (replace in-memory state; does NOT persist)
+ *   clearStore()                        – void  (clears memory + LocalStorage)
+ *   loadDemoData(txArray, append?)      – Array of loaded transactions (skips invalid rows)
+ */
 
-// In-memory array of transactions
+import { loadTransactions, saveTransactions, clearTransactions } from '../services/dataService.js';
+import { validateTransaction, normalizeTransaction }             from '../utils/validators.js';
+
+// ─── In-memory state ──────────────────────────────────────────────────────────
+
 let transactions = [];
 
-// Initialize transactions from LocalStorage
-try {
-    transactions = loadTransactions();
-} catch (error) {
-    console.error('Failed to initialize transactions in store:', error);
-    transactions = [];
+// Hydrate from LocalStorage on module init (safe — loadTransactions never throws)
+transactions = loadTransactions();
+
+// ─── Private helper ───────────────────────────────────────────────────────────
+
+/**
+ * Generate a unique transaction ID.
+ * @returns {string}
+ */
+function generateId() {
+    return (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Date.now().toString(36) + Math.random().toString(36).slice(2, 11));
 }
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Returns all transactions in the store.
- * Returns a copy of the transactions and their objects to prevent direct external mutations.
- * @returns {Array} Array of transaction objects.
+ * Returns a shallow copy of the array and a spread copy of each object
+ * to prevent callers from directly mutating store state.
+ * @returns {Array<Object>}
  */
 export function getTransactions() {
     return transactions.map(t => ({ ...t }));
 }
 
 /**
- * Adds a transaction to the store and persists it to LocalStorage.
- * @param {Object} transaction - The transaction object to add.
- * @returns {Object} The added transaction with generated ID.
+ * Validate, normalize, persist, and add a single transaction to the store.
+ *
+ * @param {Object} transaction - Raw transaction data from the form or another source.
+ * @returns {Object} The normalized, stored transaction (new copy).
  * @throws {Error} If validation fails.
  */
 export function addTransaction(transaction) {
-    const validation = validateTransaction(transaction);
-    if (!validation.isValid) {
-        const errorMsg = Object.entries(validation.errors)
-            .map(([key, msg]) => `${key}: ${msg}`)
+    const { isValid, errors } = validateTransaction(transaction);
+    if (!isValid) {
+        const msg = Object.entries(errors)
+            .map(([field, err]) => `${field}: ${err}`)
             .join(', ');
-        throw new Error(`Validation failed: ${errorMsg}`);
+        throw new Error(`Validation failed: ${msg}`);
     }
 
-    // Build transaction object with unique ID
-    const newTransaction = {
-        id: transaction.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 9))),
-        title: transaction.title.trim(),
-        amount: Number(transaction.amount),
-        category: transaction.category.trim(),
-        date: transaction.date
-    };
+    // normalizeTransaction returns a clean copy with all fields including `recurring`
+    const normalized = normalizeTransaction({
+        ...transaction,
+        // Preserve any existing id; normalizeTransaction generates one if absent
+        id: transaction.id || generateId(),
+    });
 
-    transactions.push(newTransaction);
+    transactions.push(normalized);
     saveTransactions(transactions);
-    return { ...newTransaction };
+    return { ...normalized };
 }
 
 /**
- * Deletes a transaction from the store and persists changes.
- * @param {string} id - The ID of the transaction to delete.
- * @returns {boolean} True if deleted, false if transaction not found.
+ * Delete a transaction by ID.
+ * @param {string} id - The transaction's unique ID.
+ * @returns {boolean} True if found and deleted, false if not found.
  */
 export function deleteTransaction(id) {
+    if (!id) return false;
     const index = transactions.findIndex(t => t.id === id);
-    if (index === -1) {
-        return false;
-    }
+    if (index === -1) return false;
 
     transactions.splice(index, 1);
     saveTransactions(transactions);
@@ -67,55 +93,75 @@ export function deleteTransaction(id) {
 }
 
 /**
- * Clears all transactions in-memory and in LocalStorage.
- * Mainly used for testing and resetting the application state.
+ * Replace the in-memory transaction list without persisting.
+ * Used by the init flow: load from LocalStorage → setTransactions → getTransactions.
+ *
+ * @param {Array<Object>} txArray - The replacement array.
  */
-export function clearStore() {
-    transactions = [];
-    saveTransactions(transactions);
+export function setTransactions(txArray) {
+    transactions = Array.isArray(txArray) ? txArray.map(t => ({ ...t })) : [];
 }
 
 /**
- * Loads an array of transactions into the store.
- * Validates each transaction beforehand to prevent partial store updates and storage corruption.
- * By default, replaces the existing transactions. If append is true, appends them.
- * @param {Array} demoTransactions - The array of transactions to load.
- * @param {boolean} [append=false] - Whether to append or replace.
- * @returns {Array} The successfully loaded transactions.
- * @throws {Error} If validation fails or input is not an array.
+ * Clear all transactions from memory and LocalStorage.
+ */
+export function clearStore() {
+    transactions = [];
+    clearTransactions();   // delegates to dataService
+    saveTransactions([]);  // belt-and-suspenders: ensure key is set to []
+}
+
+/**
+ * Load an array of transactions into the store in bulk.
+ * Invalid rows are SKIPPED (not thrown) so a single bad record never aborts a batch import.
+ * Optionally append to the existing list; otherwise replaces it.
+ *
+ * @param {Array<Object>} demoTransactions - Transactions to load.
+ * @param {boolean} [append=false] - If true, appends; otherwise replaces.
+ * @returns {Array<Object>} The successfully loaded transactions (copies).
  */
 export function loadDemoData(demoTransactions, append = false) {
     if (!Array.isArray(demoTransactions)) {
-        throw new Error('Demo data must be a valid array.');
+        throw new TypeError('loadDemoData: first argument must be an array.');
     }
 
-    // Validate all transactions first to prevent partial load issues
-    const validatedList = [];
+    const accepted = [];
+
     for (const tx of demoTransactions) {
-        const validation = validateTransaction(tx);
-        if (!validation.isValid) {
-            const errorMsg = Object.entries(validation.errors)
-                .map(([key, msg]) => `${key}: ${msg}`)
-                .join(', ');
-            throw new Error(`Validation failed for demo transaction "${tx.title || 'Untitled'}": ${errorMsg}`);
+        const { isValid, errors } = validateTransaction(tx);
+        if (!isValid) {
+            const reason = Object.entries(errors).map(([f, e]) => `${f}: ${e}`).join(', ');
+            console.warn(`loadDemoData: skipping "${tx?.title ?? 'Untitled'}" — ${reason}`);
+            continue;
         }
 
-        validatedList.push({
-            id: tx.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).substr(2, 9))),
-            title: tx.title.trim(),
-            amount: Number(tx.amount),
-            category: tx.category.trim(),
-            date: tx.date
-        });
+        try {
+            accepted.push(normalizeTransaction({
+                ...tx,
+                id: tx.id || generateId(),
+            }));
+        } catch (err) {
+            console.warn(`loadDemoData: skipping row — ${err.message}`);
+        }
     }
 
     if (append) {
-        transactions.push(...validatedList);
+        transactions.push(...accepted);
     } else {
-        transactions = validatedList;
+        transactions = accepted;
     }
 
     saveTransactions(transactions);
-    return validatedList.map(t => ({ ...t }));
+    return accepted.map(t => ({ ...t }));
 }
 
+// ─── Default export ───────────────────────────────────────────────────────────
+
+export default {
+    getTransactions,
+    addTransaction,
+    deleteTransaction,
+    setTransactions,
+    clearStore,
+    loadDemoData,
+};
