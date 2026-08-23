@@ -3,13 +3,1284 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recurring Expense Anomaly Tracker</title>
+    <meta name="description" content="Track recurring expenses and automatically detect spending anomalies using statistical analysis.">
+    <title>ExpenseTrack — Recurring Expense Anomaly Tracker</title>
+
+    <!-- Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
     <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/landing.css">
+    <link rel="stylesheet" href="css/auth.css">
+
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Recurring Expense Anomaly Tracker</h1>
-    <p>Phase 1 - Project Setup</p>
 
-    <script type="module" src="js/app.js"></script>
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         PREMIUM GLASSMORPHISM AUTHENTICATION MODAL OVERLAY
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div class="auth-modal-backdrop" id="auth-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <div class="auth-modal-container">
+            <!-- Top Close Button -->
+            <button type="button" class="auth-close-btn" id="auth-modal-close-btn" aria-label="Close authentication modal">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+
+            <!-- Header Section -->
+            <div class="auth-header">
+                <div class="auth-brand-badge">
+                    <span class="auth-brand-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </span>
+                    <span>Welcome to ExpenseTrack</span>
+                </div>
+                <h2 class="auth-title" id="auth-modal-title">Take control of your spending.</h2>
+                <p class="auth-subtitle">Track expenses, understand patterns, and detect unusual spending.</p>
+            </div>
+
+            <!-- Segmented Switcher [ Sign In | Create Account ] -->
+            <div class="auth-tabs-nav">
+                <button type="button" class="auth-tab-btn auth-tab--active" id="auth-tab-login">Sign In</button>
+                <button type="button" class="auth-tab-btn" id="auth-tab-signup">Create Account</button>
+            </div>
+
+            <!-- Forms Wrapper -->
+            <div class="auth-forms-wrapper">
+
+                <!-- 1. LOGIN FORM VIEW -->
+                <div class="auth-form-view auth-form--active" id="auth-view-login">
+                    <div class="auth-error-alert" id="auth-login-error"></div>
+
+                    <form class="auth-form" id="auth-login-form" novalidate>
+                        <div class="auth-field-group">
+                            <label for="login-email" class="auth-field-label">Email Address</label>
+                            <div class="auth-input-wrap">
+                                <input type="email" id="login-email" class="auth-input" placeholder="name@example.com" required autocomplete="email" />
+                            </div>
+                        </div>
+
+                        <div class="auth-field-group">
+                            <label for="login-password" class="auth-field-label">Password</label>
+                            <div class="auth-input-wrap">
+                                <input type="password" id="login-password" class="auth-input auth-input--has-icon" placeholder="••••••••" required autocomplete="current-password" />
+                                <button type="button" class="auth-password-toggle" data-target="login-password" title="Show password" aria-label="Toggle password visibility">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="auth-options-row">
+                            <label class="auth-remember-label">
+                                <input type="checkbox" id="login-remember" class="auth-remember-checkbox" checked />
+                                <span>Remember me</span>
+                            </label>
+                            <a href="#landing" class="auth-forgot-link" id="login-forgot" onclick="event.preventDefault(); alert('Demo Mode: Use your demo password or create a new account.');">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="auth-submit-btn" id="login-submit-btn">
+                            <span>Sign In to Dashboard</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- 2. SIGNUP FORM VIEW -->
+                <div class="auth-form-view" id="auth-view-signup">
+                    <div class="auth-error-alert" id="auth-signup-error"></div>
+
+                    <form class="auth-form" id="auth-signup-form" novalidate>
+                        <div class="auth-field-group">
+                            <label for="signup-name" class="auth-field-label">Full Name</label>
+                            <div class="auth-input-wrap">
+                                <input type="text" id="signup-name" class="auth-input" placeholder="e.g. Alex" required autocomplete="name" />
+                            </div>
+                        </div>
+
+                        <div class="auth-field-group">
+                            <label for="signup-email" class="auth-field-label">Email Address</label>
+                            <div class="auth-input-wrap">
+                                <input type="email" id="signup-email" class="auth-input" placeholder="name@example.com" required autocomplete="email" />
+                            </div>
+                        </div>
+
+                        <div class="auth-field-group">
+                            <label for="signup-password" class="auth-field-label">Password</label>
+                            <div class="auth-input-wrap">
+                                <input type="password" id="signup-password" class="auth-input auth-input--has-icon" placeholder="At least 6 characters" required autocomplete="new-password" />
+                                <button type="button" class="auth-password-toggle" data-target="signup-password" title="Show password" aria-label="Toggle password visibility">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="auth-field-group">
+                            <label for="signup-confirm-password" class="auth-field-label">Confirm Password</label>
+                            <div class="auth-input-wrap">
+                                <input type="password" id="signup-confirm-password" class="auth-input auth-input--has-icon" placeholder="Re-enter your password" required autocomplete="new-password" />
+                                <button type="button" class="auth-password-toggle" data-target="signup-confirm-password" title="Show password" aria-label="Toggle password visibility">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-submit-btn" id="signup-submit-btn">
+                            <span>Create Account</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Demo Hint -->
+            <div class="auth-demo-hint">
+                Demo Account: <code>test@expensetrack.app</code> • <code>password123</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         LANDING PAGE VIEW (Pixel-Faithful Reference Match)
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div id="landing-page-view">
+
+        <!-- 1. Sticky Navigation Bar -->
+        <header class="landing-navbar" id="landing-navbar">
+            <div class="navbar-inner">
+                <!-- Left: Logo & Wordmark -->
+                <a href="#landing" class="landing-logo" id="landing-logo-btn" title="ExpenseTrack Home">
+                    <span class="landing-logo-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            <path d="M2 12h20"/>
+                        </svg>
+                    </span>
+                    <span class="landing-logo-text">ExpenseTrack</span>
+                </a>
+
+                <!-- Center: In-Page Links -->
+                <ul class="landing-nav-links">
+                    <li><a href="#features-section" class="landing-nav-link">Features</a></li>
+                    <li><a href="#how-it-works-section" class="landing-nav-link">How it Works</a></li>
+                    <li><a href="#why-section" class="landing-nav-link">Why ExpenseTrack</a></li>
+                </ul>
+
+                <!-- Right: Get Started CTA -->
+                <div class="landing-nav-actions">
+                    <button type="button" class="btn-explore-dashboard" id="btn-landing-nav-explore" title="Get Started with ExpenseTrack">
+                        <span>Get Started</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                            <polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 2. Hero Section -->
+        <section class="landing-hero" id="hero-section">
+            <div class="hero-glow-bg" aria-hidden="true"></div>
+
+            <div class="landing-container">
+                <div class="hero-grid">
+                    <!-- Left Hero Column -->
+                    <div class="hero-content reveal-on-scroll">
+                        <h1 class="hero-headline">
+                            Understand your spending. Detect what <span class="text-accent">doesn’t belong.</span>
+                        </h1>
+
+                        <p class="hero-description">
+                            ExpenseTrack analyzes your transactions, identifies recurring expenses, and detects unusual spending patterns using advanced statistical intelligence.
+                        </p>
+
+                        <div class="hero-cta-group">
+                            <button type="button" class="btn-hero-primary" id="btn-hero-explore-dashboard" title="Open ExpenseTrack Dashboard">
+                                <span>Explore Dashboard</span>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                    <polyline points="12 5 19 12 12 19"/>
+                                </svg>
+                            </button>
+                            <a href="#how-it-works-section" class="btn-hero-secondary" id="btn-hero-how-it-works">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                                <span>See How It Works</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Right Hero Column: Floating Realistic Dashboard Preview -->
+                    <div class="hero-preview-wrapper reveal-on-scroll delay-200">
+                        <div class="dashboard-mockup-frame">
+                            <!-- Mini Sidebar -->
+                            <div class="mockup-sidebar">
+                                <div class="mockup-sidebar-top">
+                                    <div class="mockup-brand">
+                                        <span class="mockup-brand-icon">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                                <circle cx="12" cy="12" r="10"/>
+                                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                            </svg>
+                                        </span>
+                                        <span class="mockup-brand-name">ExpenseTrack</span>
+                                    </div>
+                                    <div class="mockup-nav-list">
+                                        <div class="mockup-nav-item mockup-nav-item--active">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                                            <span>Overview</span>
+                                        </div>
+                                        <div class="mockup-nav-item">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                                            <span>Analytics</span>
+                                        </div>
+                                        <div class="mockup-nav-item">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                                            <span>Transactions</span>
+                                        </div>
+                                        <div class="mockup-nav-item">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                                            <span>Anomaly Insights</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mockup-sidebar-bottom">
+                                    <div class="mockup-stat-pill">
+                                        <span>Total Records</span>
+                                        <b>128 Entries</b>
+                                    </div>
+                                    <div class="mockup-logout">
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                                        <span>Logout</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mockup Main Display Area -->
+                            <div class="mockup-main">
+                                <!-- Top Bar -->
+                                <div class="mockup-header">
+                                    <div class="mockup-search-pill">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                        <span>Search transactions, categories...</span>
+                                    </div>
+                                    <div class="mockup-header-right">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+                                        <span>Apr 01 - Apr 30, 2025</span>
+                                        <div class="mockup-user-avatar"></div>
+                                    </div>
+                                </div>
+
+                                <!-- 4 Metric Cards -->
+                                <div class="mockup-metric-grid">
+                                    <div class="mockup-metric-card">
+                                        <div class="mmc-label">Total Expenses</div>
+                                        <div class="mmc-val">₹48,650.75</div>
+                                        <div class="mmc-delta">↑ 12.4% vs last month</div>
+                                    </div>
+                                    <div class="mockup-metric-card">
+                                        <div class="mmc-label">Total Transactions</div>
+                                        <div class="mmc-val">32</div>
+                                        <div class="mmc-delta">↑ 6 vs last month</div>
+                                    </div>
+                                    <div class="mockup-metric-card">
+                                        <div class="mmc-label">Anomalies Detected</div>
+                                        <div class="mmc-val" style="color:#ef4444;">3</div>
+                                        <div class="mmc-delta mmc-delta--danger">↑ 2 vs last month</div>
+                                    </div>
+                                    <div class="mockup-metric-card">
+                                        <div class="mmc-label">Recurring Expenses</div>
+                                        <div class="mmc-val">₹28,450.00</div>
+                                        <div class="mmc-delta">↑ 8.7% vs last month</div>
+                                    </div>
+                                </div>
+
+                                <!-- Charts Row -->
+                                <div class="mockup-charts-grid">
+                                    <!-- Spending Trend Curve -->
+                                    <div class="mockup-chart-box">
+                                        <div class="mcb-header">
+                                            <span>Daily Spending Trend</span>
+                                            <span class="mcb-pill">This Month ▾</span>
+                                        </div>
+                                        <div class="mockup-trend-svg-wrap">
+                                            <svg class="mockup-trend-svg" viewBox="0 0 280 80" fill="none">
+                                                <defs>
+                                                    <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stop-color="#5BC236" stop-opacity="0.25"/>
+                                                        <stop offset="100%" stop-color="#5BC236" stop-opacity="0"/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <path d="M0,60 Q35,40 70,55 T140,25 T210,65 T280,30 L280,80 L0,80 Z" fill="url(#trendFill)"/>
+                                                <path d="M0,60 Q35,40 70,55 T140,25 T210,65 T280,30" stroke="#5BC236" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                                                <circle cx="140" cy="25" r="4.5" fill="#5BC236" stroke="#ffffff" stroke-width="2"/>
+                                            </svg>
+                                            <div class="mockup-chart-tooltip">
+                                                <span>18 Apr 2025</span>
+                                                <b>₹2,850.50</b>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Category Breakdown Donut -->
+                                    <div class="mockup-chart-box">
+                                        <div class="mcb-header">
+                                            <span>Category Breakdown</span>
+                                        </div>
+                                        <div class="mockup-donut-wrap">
+                                            <svg class="mockup-donut-svg" viewBox="0 0 36 36">
+                                                <circle cx="18" cy="18" r="14" fill="none" stroke="#e2e8f0" stroke-width="5"/>
+                                                <circle cx="18" cy="18" r="14" fill="none" stroke="#5BC236" stroke-width="5" stroke-dasharray="42 58" stroke-dashoffset="25"/>
+                                                <circle cx="18" cy="18" r="14" fill="none" stroke="#3b82f6" stroke-width="5" stroke-dasharray="20 80" stroke-dashoffset="83"/>
+                                                <circle cx="18" cy="18" r="14" fill="none" stroke="#eab308" stroke-width="5" stroke-dasharray="15 85" stroke-dashoffset="63"/>
+                                                <circle cx="18" cy="18" r="14" fill="none" stroke="#ec4899" stroke-width="5" stroke-dasharray="10 90" stroke-dashoffset="48"/>
+                                                <text x="18" y="17" text-anchor="middle" font-size="3.5" font-weight="bold" fill="#111827">₹48,650</text>
+                                                <text x="18" y="21" text-anchor="middle" font-size="2.2" fill="#94a3b8">Total</text>
+                                            </svg>
+                                            <div class="mockup-legend-list">
+                                                <div class="legend-item"><span class="legend-dot" style="background:#5BC236;"></span><span>Subscriptions 42%</span></div>
+                                                <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span><span>Rent 20%</span></div>
+                                                <div class="legend-item"><span class="legend-dot" style="background:#eab308;"></span><span>Utilities 15%</span></div>
+                                                <div class="legend-item"><span class="legend-dot" style="background:#ec4899;"></span><span>Groceries 10%</span></div>
+                                                <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6;"></span><span>Transport 7%</span></div>
+                                                <div class="legend-item"><span class="legend-dot" style="background:#cbd5e1;"></span><span>Others 6%</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating Overlapping Anomaly Alert -->
+                        <div class="hero-floating-alert">
+                            <div class="alert-left">
+                                <div class="alert-icon-box">⚠</div>
+                                <div>
+                                    <div class="alert-title">Unusual Transaction Detected</div>
+                                    <div class="alert-sub">Adobe Subscription of ₹10,000 is deviating from your normal pattern.</div>
+                                </div>
+                            </div>
+                            <span class="alert-chevron">›</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Trust Bar Section -->
+        <section class="landing-trust-section" id="why-section">
+            <div class="landing-container">
+                <div class="trust-bar-card reveal-on-scroll">
+                    <!-- Item 1 -->
+                    <div class="trust-item">
+                        <div class="trust-icon-circle">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="trust-item-title">100% Secure</h4>
+                            <p class="trust-item-desc">Your data is encrypted and never shared.</p>
+                        </div>
+                    </div>
+
+                    <!-- Item 2 -->
+                    <div class="trust-item">
+                        <div class="trust-icon-circle">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                                <polyline points="17 6 23 6 23 12"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="trust-item-title">Smart Analytics</h4>
+                            <p class="trust-item-desc">Get insights that help you make better decisions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Item 3 -->
+                    <div class="trust-item">
+                        <div class="trust-icon-circle">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="trust-item-title">Real-time Detection</h4>
+                            <p class="trust-item-desc">Detect unusual expenses as they happen.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Features Section -->
+        <section class="landing-features-section" id="features-section">
+            <div class="landing-container">
+                <div class="section-header-center reveal-on-scroll">
+                    <h2 class="section-title-large">
+                        Powerful features for <span class="text-accent">smarter financial control</span>
+                    </h2>
+                </div>
+
+                <div class="features-grid-3col">
+                    <!-- Feature Card 1 -->
+                    <div class="feature-premium-card reveal-on-scroll delay-100">
+                        <div class="fpc-icon-circle">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                        </div>
+                        <h3 class="fpc-title">Track Everything</h3>
+                        <p class="fpc-desc">Add and categorize all your transactions in one place with ease and clarity.</p>
+
+                        <div class="fpc-visual-box">
+                            <div class="mini-tx-row">
+                                <div class="mini-tx-left"><span class="mini-tx-dot"></span><span class="mini-tx-bar"></span></div>
+                                <span class="mini-tx-val"></span>
+                            </div>
+                            <div class="mini-tx-row">
+                                <div class="mini-tx-left"><span class="mini-tx-dot" style="background:#3b82f6;"></span><span class="mini-tx-bar" style="width:50px;"></span></div>
+                                <span class="mini-tx-val" style="width:25px;"></span>
+                            </div>
+                            <div class="mini-tx-row">
+                                <div class="mini-tx-left"><span class="mini-tx-dot" style="background:#eab308;"></span><span class="mini-tx-bar" style="width:60px;"></span></div>
+                                <span class="mini-tx-val" style="width:30px;"></span>
+                            </div>
+                            <div class="floating-mini-badge">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="feature-premium-card reveal-on-scroll delay-200">
+                        <div class="fpc-icon-circle fpc-icon-circle--blue">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="18" r="3"/>
+                                <circle cx="6" cy="6" r="3"/>
+                                <path d="M13 6h3a2 2 0 0 1 2 2v7"/>
+                                <line x1="6" y1="9" x2="6" y2="21"/>
+                            </svg>
+                        </div>
+                        <h3 class="fpc-title">Analyze Patterns</h3>
+                        <p class="fpc-desc">Visualize spending trends, category breakdown, and recurring expenses with interactive charts.</p>
+
+                        <div class="fpc-visual-box fpc-visual-box--chart">
+                            <div class="mini-bar-chart">
+                                <span class="mini-bar" style="height:20px;"></span>
+                                <span class="mini-bar mini-bar--tall" style="height:35px;"></span>
+                                <span class="mini-bar" style="height:25px;"></span>
+                                <span class="mini-bar mini-bar--tall" style="height:48px;"></span>
+                                <span class="mini-bar" style="height:30px;"></span>
+                            </div>
+                            <svg class="mini-donut-preview" viewBox="0 0 36 36">
+                                <circle cx="18" cy="18" r="14" fill="none" stroke="#e2e8f0" stroke-width="6"/>
+                                <circle cx="18" cy="18" r="14" fill="none" stroke="#5BC236" stroke-width="6" stroke-dasharray="60 40" stroke-dashoffset="25"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="feature-premium-card reveal-on-scroll delay-300">
+                        <div class="fpc-icon-circle fpc-icon-circle--purple">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                        </div>
+                        <h3 class="fpc-title">Detect Anomalies</h3>
+                        <p class="fpc-desc">Our statistical model identifies transactions that deviate significantly from your normal spending behavior.</p>
+
+                        <div class="fpc-visual-box fpc-visual-box--anomaly">
+                            <div class="mini-anomaly-pill">
+                                <div class="map-left">
+                                    <span>⚠</span>
+                                    <span>Outlier Spike</span>
+                                </div>
+                                <span class="map-score">Z-Score: +2.64</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Dark Section: How Anomaly Detection Works & Final Split CTA -->
+        <section class="landing-dark-wrapper" id="how-it-works-section">
+            <div class="dark-glow-mesh" aria-hidden="true"></div>
+            <div class="dark-dot-grid" aria-hidden="true"></div>
+
+            <div class="landing-container">
+                <h2 class="dark-section-title reveal-on-scroll">How anomaly detection works</h2>
+
+                <!-- 4-Step Horizontal Process -->
+                <div class="how-it-works-grid">
+                    <!-- Step 01 -->
+                    <div class="step-card reveal-on-scroll delay-100">
+                        <div class="step-number-pill">01</div>
+                        <h4 class="step-title">Transaction Data</h4>
+                        <p class="step-desc">We collect and organize your transaction data by category.</p>
+                        <span class="step-arrow-connector">→</span>
+                    </div>
+
+                    <!-- Step 02 -->
+                    <div class="step-card reveal-on-scroll delay-200">
+                        <div class="step-number-pill">02</div>
+                        <h4 class="step-title">Category Baseline</h4>
+                        <p class="step-desc">Calculate the average and standard deviation for each category.</p>
+                        <span class="step-arrow-connector">→</span>
+                    </div>
+
+                    <!-- Step 03 -->
+                    <div class="step-card reveal-on-scroll delay-300">
+                        <div class="step-number-pill">03</div>
+                        <h4 class="step-title">Z-Score Analysis</h4>
+                        <p class="step-desc">Each transaction is scored using Z = (x - μ) / σ to measure deviation.</p>
+                        <span class="step-arrow-connector">→</span>
+                    </div>
+
+                    <!-- Step 04 -->
+                    <div class="step-card reveal-on-scroll delay-400">
+                        <div class="step-number-pill">04</div>
+                        <h4 class="step-title">Outlier Detection</h4>
+                        <p class="step-desc">Transactions with |Z| ≥ 2 are flagged as unusual expenses.</p>
+                    </div>
+                </div>
+
+                <!-- Final Split CTA Card inside Dark Section -->
+                <div class="dark-split-cta reveal-on-scroll" id="pricing-section">
+                    <!-- Left: Dark Mockup Preview -->
+                    <div class="dark-mockup-frame">
+                        <div class="dark-mockup-header">
+                            <span class="dark-dot dark-dot--red"></span>
+                            <span class="dark-dot dark-dot--yellow"></span>
+                            <span class="dark-dot dark-dot--green"></span>
+                        </div>
+                        <div class="dark-mockup-body">
+                            <div class="dark-mockup-stats">
+                                <div class="dms-card">
+                                    <span class="dms-label">Total Expenses</span>
+                                    <div class="dms-val">₹48,650.75</div>
+                                </div>
+                                <div class="dms-card">
+                                    <span class="dms-label">Transactions</span>
+                                    <div class="dms-val">32</div>
+                                </div>
+                                <div class="dms-card">
+                                    <span class="dms-label">Anomalies</span>
+                                    <div class="dms-val" style="color:#ef4444;">3</div>
+                                </div>
+                            </div>
+                            <svg class="dark-mockup-chart-svg" viewBox="0 0 260 70" fill="none">
+                                <path d="M0,50 Q30,30 65,45 T130,15 T195,50 T260,20" stroke="#5BC236" stroke-width="2" fill="none"/>
+                                <circle cx="130" cy="15" r="4" fill="#5BC236"/>
+                            </svg>
+                        </div>
+                        <div class="dark-mockup-alert">
+                            <span class="dma-icon">⚠</span>
+                            <span class="dma-text">Anomaly Detected</span>
+                            <span class="dma-score">Z-Score: +2.64</span>
+                        </div>
+                    </div>
+
+                    <!-- Right: Text & CTA Button -->
+                    <div class="dark-cta-content">
+                        <span class="dark-cta-tag">Insights that matter. Control that stays with you.</span>
+                        <h3 class="dark-cta-title">
+                            Ready to <span class="text-accent">understand where your money goes?</span>
+                        </h3>
+                        <p class="dark-cta-desc">
+                            Join hundreds of smart users who trust ExpenseTrack to manage their finances and detect unusual spending.
+                        </p>
+                        <button type="button" class="btn-dark-cta" id="btn-dark-cta-explore">
+                            <span>Explore Dashboard</span>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                        <span class="dark-cta-subtext">100% Private • Secure</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Dark Footer -->
+        <footer class="landing-footer-dark">
+            <div class="landing-container">
+                <div class="footer-top-grid">
+                    <!-- Brand Column -->
+                    <div class="footer-brand-col">
+                        <a href="#landing" class="footer-logo">
+                            <span class="footer-logo-icon">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                </svg>
+                            </span>
+                            <span class="footer-logo-text">ExpenseTrack</span>
+                        </a>
+                        <p class="footer-tagline">
+                            Smart expense intelligence that helps you track, analyze, and detect anomalies in your spending.
+                        </p>
+                    </div>
+
+                    <!-- Column 1: Resources -->
+                    <div>
+                        <h5 class="footer-col-title">Resources</h5>
+                        <ul class="footer-links-list">
+                            <li><a href="#how-it-works-section" class="footer-link">How It Works</a></li>
+                            <li><a href="#features-section" class="footer-link">Features</a></li>
+                        </ul>
+                    </div>
+
+                    <!-- Column 2: Connect & Socials -->
+                    <div>
+                        <h5 class="footer-col-title">Connect</h5>
+                        <div class="footer-socials">
+                            <a href="https://github.com/Pranjal-sh-git/recurring-expense-anomaly-tracker" target="_blank" rel="noopener noreferrer" class="social-icon-btn" title="GitHub Repository">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Bottom Row -->
+                <div class="footer-bottom-bar">
+                    <span>© 2026 ExpenseTrack. All rights reserved.</span>
+                    <span class="footer-made-with">Made with <span style="color:#5BC236;">♥</span> for smarter spending</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+    <!-- /#landing-page-view -->
+
+    <!-- Mobile sidebar backdrop -->
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+    <div class="app-shell" id="app-dashboard-view">
+
+        <!-- ═══════════════════════════════════════════
+             LEFT SIDEBAR NAVIGATION
+        ═══════════════════════════════════════════ -->
+        <aside class="sidebar" id="app-sidebar" role="navigation" aria-label="Main navigation">
+
+            <!-- Brand / Logo (Wider layout) -->
+            <div class="sidebar-brand">
+                <div class="brand-logo-container">
+                    <span class="brand-logo-circle">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            <path d="M2 12h20"/>
+                        </svg>
+                    </span>
+                    <div class="brand-logo-text">
+                        <span class="brand-name">ExpenseTrack</span>
+                        <span class="brand-tagline">Anomaly Tracker</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links (Pill style buttons) -->
+            <nav class="sidebar-nav" aria-label="Sections">
+                <ul class="nav-list" role="list">
+
+                    <li role="listitem">
+                        <button class="nav-link active" data-section="overview" id="nav-overview" aria-current="page" title="Overview">
+                            <span class="nav-icon-wrap">
+                                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                                    <rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                                </svg>
+                            </span>
+                            <span class="nav-label">Overview</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="analytics" id="nav-analytics" title="Analytics">
+                            <span class="nav-icon-wrap">
+                                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+                                    <line x1="6" y1="20" x2="6" y2="14"/>
+                                </svg>
+                            </span>
+                            <span class="nav-label">Analytics</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="transactions" id="nav-transactions" title="Transactions">
+                            <span class="nav-icon-wrap">
+                                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+                                    <rect x="9" y="3" width="6" height="4" rx="1"/>
+                                    <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+                                </svg>
+                            </span>
+                            <span class="nav-label">Transactions</span>
+                        </button>
+                    </li>
+
+                    <li role="listitem">
+                        <button class="nav-link" data-section="anomaly-insights" id="nav-anomaly-insights" title="Anomaly Insights">
+                            <span class="nav-icon-wrap">
+                                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </span>
+                            <span class="nav-label">Anomaly Insights</span>
+                        </button>
+                    </li>
+
+                </ul>
+            </nav>
+
+            <!-- Sidebar Stats Container (2 Separate Cards) -->
+            <div class="sidebar-stats-container">
+                <!-- Card 1: Total Records -->
+                <div class="sidebar-records-card">
+                    <div class="src-icon src-icon--records">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+                        </svg>
+                    </div>
+                    <div class="src-text">
+                        <span class="src-label">Total Records</span>
+                        <span class="src-value" id="sidebar-record-count">0</span>
+                        <span class="src-status"><span class="status-pulse-dot"></span> Synced just now</span>
+                    </div>
+                </div>
+
+                <!-- Card 2: Anomalies Detected -->
+                <div class="sidebar-records-card sidebar-records-card--anomaly">
+                    <div class="src-icon src-icon--anomalies">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="src-text">
+                        <span class="src-label">Anomalies Detected</span>
+                        <span class="src-value src-value--danger" id="sidebar-anomaly-count">0</span>
+                        <span class="src-status src-status--danger"><span class="status-pulse-dot status-pulse-dot--danger"></span> Active alerts</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logout button at the bottom -->
+            <div class="sidebar-logout">
+                <button class="btn-logout" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    <span>Logout</span>
+                </button>
+            </div>
+
+        </aside>
+        <!-- /aside.sidebar -->
+
+
+        <!-- ═══════════════════════════════════════════
+             MAIN AREA  (navbar + scrollable content)
+        ═══════════════════════════════════════════ -->
+        <div class="main-area" id="main-area">
+
+            <!-- ── Top Navbar ── -->
+            <header class="top-navbar">
+                <div class="navbar-page-info">
+                    <!-- Hamburger (mobile only) -->
+                    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation sidebar" aria-controls="app-sidebar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                            <line x1="3" y1="6"  x2="21" y2="6"/>
+                            <line x1="3" y1="12" x2="21" y2="12"/>
+                            <line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <div class="page-title-wrap">
+                        <h1 class="navbar-page-title" id="page-title">Overview</h1>
+                        <p class="navbar-page-subtitle" id="page-subtitle">Track, analyze and detect anomalies in your recurring expenses</p>
+                    </div>
+                </div>
+
+                <!-- Center Home Button -->
+                <div class="navbar-center" id="navbar-center">
+                    <button type="button" class="btn-navbar-home" id="btn-navbar-home" title="Return to Home / Landing Page">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                        <span>Home</span>
+                    </button>
+                </div>
+
+                <div class="navbar-controls-right">
+                    <!-- Date range selector with interactive dropdown -->
+                    <div class="navbar-date-picker-wrapper">
+                        <div class="navbar-date-picker" id="navbar-date-picker" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false" title="Click to filter by date range">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="date-icon">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                            <span id="navbar-date-label">All Time</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="chevron-icon">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </div>
+
+                        <!-- Date Picker Dropdown Menu -->
+                        <div class="date-picker-dropdown" id="date-picker-dropdown" aria-hidden="true">
+                            <div class="dp-header">
+                                <span class="dp-title">Filter by Date</span>
+                                <button type="button" class="dp-reset-btn" id="dp-reset-btn">Reset</button>
+                            </div>
+                            <div class="dp-presets">
+                                <button type="button" class="dp-preset-btn dp-preset-btn--active" data-range="all">All Time</button>
+                                <button type="button" class="dp-preset-btn" data-range="this-month">This Month</button>
+                                <button type="button" class="dp-preset-btn" data-range="last-30">Last 30 Days</button>
+                                <button type="button" class="dp-preset-btn" data-range="last-90">Last 90 Days</button>
+                                <button type="button" class="dp-preset-btn" data-range="this-year">This Year</button>
+                            </div>
+                            <div class="dp-divider"></div>
+                            <div class="dp-custom">
+                                <span class="dp-custom-label">Custom Range</span>
+                                <div class="dp-inputs-row">
+                                    <div class="dp-input-group">
+                                        <label for="dp-start-date">From</label>
+                                        <input type="date" id="dp-start-date" class="dp-input" />
+                                    </div>
+                                    <div class="dp-input-group">
+                                        <label for="dp-end-date">To</label>
+                                        <input type="date" id="dp-end-date" class="dp-input" />
+                                    </div>
+                                </div>
+                                <button type="button" class="dp-apply-btn" id="dp-apply-btn">Apply Custom Range</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Transaction primary button -->
+                    <button class="btn-navbar-primary" id="btn-add-transaction-nav" title="Go to Transactions to add a new entry">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="8" x2="12" y2="16"/>
+                            <line x1="8"  y1="12" x2="16" y2="12"/>
+                        </svg>
+                        <span>Add Transaction</span>
+                    </button>
+
+                    <!-- User Profile Area with Dropdown -->
+                    <div class="navbar-user-profile-wrapper" id="navbar-user-profile-wrapper">
+                        <div class="navbar-user-profile" id="navbar-user-profile-btn" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false" title="User account options">
+                            <img src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=120&auto=format&fit=crop&q=80" alt="Pet Avatar" class="user-avatar" id="navbar-user-avatar">
+                            <div class="user-info">
+                                <span class="user-greeting" id="navbar-user-greeting">Good Morning 👋</span>
+                                <span class="user-name" id="navbar-user-name">Alex</span>
+                            </div>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="user-chevron">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </div>
+
+                        <!-- Dropdown Menu -->
+                        <div class="user-profile-dropdown" id="user-profile-dropdown" role="menu" aria-label="User menu">
+                            <div class="dropdown-header">
+                                <span class="dropdown-user-name" id="dropdown-user-name">Alex</span>
+                                <span class="dropdown-user-email" id="dropdown-user-email">test@expensetrack.app</span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <button type="button" class="dropdown-item dropdown-logout-btn" id="btn-navbar-logout" role="menuitem">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                    <polyline points="16 17 21 12 16 7"/>
+                                    <line x1="21" y1="12" x2="9" y2="12"/>
+                                </svg>
+                                <span>Log Out</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- /header.top-navbar -->
+
+
+            <!-- ── Scrollable Content ── -->
+            <main class="content-area" id="main-content">
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: OVERVIEW  (default active)
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-overview"
+                    class="page-section page-section--active"
+                    data-section="overview"
+                    aria-label="Overview dashboard"
+                >
+
+                    <!-- ── Metric Cards Row ── -->
+                    <div class="metrics-grid">
+
+                        <!-- Total Expenses -->
+                        <div class="metric-card" id="total-expenses-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--green" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="2" y="7" width="20" height="14" rx="2"/>
+                                        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Total Expenses</span>
+                            </div>
+                            <div class="metric-value" id="total-expenses-value">₹0.00</div>
+                            <div class="metric-comparison">
+                                <span class="comp-badge comp-badge--green">↑ 12.4%</span>
+                                <span class="comp-text">vs last month</span>
+                            </div>
+                        </div>
+
+                        <!-- Total Transactions -->
+                        <div class="metric-card" id="total-transactions-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--neutral" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Total Transactions</span>
+                            </div>
+                            <div class="metric-value" id="total-transactions-value">0</div>
+                            <div class="metric-comparison">
+                                <span class="comp-badge comp-badge--neutral">↑ 6</span>
+                                <span class="comp-text">vs last month</span>
+                            </div>
+                        </div>
+
+                        <!-- Anomalies Detected -->
+                        <div class="metric-card" id="anomalies-detected-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--danger" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Anomalies Detected</span>
+                            </div>
+                            <div class="metric-value" id="anomalies-value">0</div>
+                            <div class="metric-comparison">
+                                <span class="comp-badge comp-badge--danger">↑ 2</span>
+                                <span class="comp-text">vs last month</span>
+                            </div>
+                        </div>
+
+                        <!-- Top Category -->
+                        <div class="metric-card" id="highest-spending-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--purple" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path d="M12 6v6l4 2"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Top Category</span>
+                            </div>
+                            <div class="metric-value metric-value--sm" id="highest-category-value">--</div>
+                            <div class="metric-comparison">
+                                <span class="comp-text comp-text--accent">42% of total expenses</span>
+                            </div>
+                        </div>
+
+                        <!-- Recurring Expenses -->
+                        <div class="metric-card" id="recurring-count-card">
+                            <div class="metric-card-top">
+                                <span class="metric-icon-wrap metric-icon-wrap--green" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <polyline points="1 20 1 14 7 14"/>
+                                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                                    </svg>
+                                </span>
+                                <span class="metric-label">Recurring Expenses</span>
+                            </div>
+                            <div class="metric-value" id="recurring-count-value">0</div>
+                            <div class="metric-comparison">
+                                <span class="comp-badge comp-badge--green">↑ 8.7%</span>
+                                <span class="comp-text">vs last month</span>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- /metrics-grid -->
+
+
+                    <!-- ── Asymmetric Dashboard Grid ── -->
+                    <div class="overview-dashboard-grid">
+
+                        <!-- Left Column (Spans 2/3 of layout width) -->
+                        <div class="overview-left-column">
+                            
+                            <!-- Row 1: Daily Spending Trend (Wide) + Category Breakdown (Medium) -->
+                            <div class="overview-left-row-1">
+                                <div class="chart-card chart-card--wide">
+                                    <div class="chart-card-header">
+                                        <h2 class="chart-card-title">Daily Spending Trend</h2>
+                                        <span class="chart-card-desc">Spending activity over time</span>
+                                    </div>
+                                    <div id="daily-chart-container" class="chart-body"></div>
+                                </div>
+
+                                <div class="chart-card">
+                                    <div class="chart-card-header">
+                                        <h2 class="chart-card-title">Category Breakdown</h2>
+                                        <span class="chart-card-desc">Distribution across categories</span>
+                                    </div>
+                                    <div id="category-chart-container" class="chart-body"></div>
+                                </div>
+                            </div>
+
+                            <!-- Row 2: Recurring vs One-off + Monthly Summary -->
+                            <div class="overview-left-row-2">
+                                <div class="overview-analytics-card" id="overview-recurring-card">
+                                    <!-- Populated by dashboard.js -->
+                                </div>
+                                <div class="overview-analytics-card" id="overview-summary-card">
+                                    <!-- Populated by dashboard.js -->
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Right Column (Spans 1/3 of layout width) -->
+                        <div class="overview-right-column">
+                            <div class="recent-panel">
+                                <div class="recent-panel-header">
+                                    <h2 class="recent-panel-title">Recent Transactions</h2>
+                                    <button class="btn-circle-action" id="btn-view-recent-more" title="View all recent transactions">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                            <polyline points="12 5 19 12 12 19"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                
+                                <div id="recent-transactions-list"></div>
+
+                                <div class="recent-panel-footer">
+                                    <button class="btn-text-action" id="btn-view-all-transactions" title="Go to transactions list">
+                                        <span>View all transactions</span>
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                            <polyline points="12 5 19 12 12 19"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- /overview-dashboard-grid -->
+
+                </section>
+                <!-- /section#section-overview -->
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: ANALYTICS
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-analytics"
+                    class="page-section"
+                    data-section="analytics"
+                    aria-label="Analytics dashboard"
+                >
+
+                    <!-- Summary metric cards — rendered by analyticsView.js -->
+                    <div class="analytics-metrics-grid" id="analytics-summary-cards"></div>
+
+                    <!-- Charts row -->
+                    <div class="analytics-charts-grid">
+                        <div class="chart-card chart-card--wide">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Daily Spending Trend</h2>
+                                <span class="chart-card-desc">Spending activity over time</span>
+                            </div>
+                            <div id="analytics-daily-chart" class="chart-body"></div>
+                        </div>
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <h2 class="chart-card-title">Spending by Category</h2>
+                                <span class="chart-card-desc">Horizontal category comparison</span>
+                            </div>
+                            <div id="analytics-category-chart" class="chart-body"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recurring vs One-off bar — rendered by analyticsView.js -->
+                    <div class="analytics-section-card" id="analytics-recurring-bar"></div>
+
+                    <!-- Category insights table — rendered by analyticsView.js -->
+                    <div class="analytics-section-card analytics-section-card--table">
+                        <div class="analytics-table-header">
+                            <h2 class="chart-card-title">Category Insights</h2>
+                            <span class="chart-card-desc">Sorted by highest total spend</span>
+                        </div>
+                        <div id="analytics-category-table"></div>
+                    </div>
+
+                </section>
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: TRANSACTIONS  (fully functional)
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-transactions"
+                    class="page-section"
+                    data-section="transactions"
+                    aria-label="Transactions"
+                >
+                    <div class="transactions-dashboard-grid">
+
+                        <!-- Left Column: Transaction Entry Form -->
+                        <div class="transactions-form-card">
+                            <div class="card-header">
+                                <h2 class="card-title">Add Transaction</h2>
+                                <span class="card-desc">Enter expense details to track and analyze</span>
+                            </div>
+                            <div id="transaction-form-container">
+                                <p class="placeholder-text">Loading transaction form…</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Filter Toolbar & History Table -->
+                        <div class="transactions-table-card">
+                            <div class="card-header card-header--with-actions">
+                                <div class="card-header-info">
+                                    <h2 class="card-title">Transaction History</h2>
+                                    <span class="card-desc">Search, filter, and review all recorded expenses</span>
+                                </div>
+                                <div class="card-header-actions">
+                                    <!-- Hidden CSV File Input -->
+                                    <input type="file" id="csv-file-input" accept=".csv,text/csv" style="display:none;" />
+                                    
+                                    <!-- Import CSV Button -->
+                                    <button type="button" class="btn-card-action btn-card-action--primary" id="btn-import-csv" title="Upload and bulk-import transactions from a CSV file">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="17 8 12 3 7 8"/>
+                                            <line x1="12" y1="3" x2="12" y2="15"/>
+                                        </svg>
+                                        <span>Import CSV</span>
+                                    </button>
+
+                                    <!-- Download Sample Template Button -->
+                                    <button type="button" class="btn-card-action btn-card-action--ghost" id="btn-sample-csv" title="Download sample CSV format template">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7 10 12 15 17 10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        <span>Sample Template</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Filter Toolbar — rendered by transactionFilters.js -->
+                            <div id="transaction-filter-container"></div>
+
+                            <!-- Transaction Table — rendered by transactionTable.js -->
+                            <div id="transaction-table-container">
+                                <p class="placeholder-text">Loading transaction history…</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+
+                <!-- ═══════════════════════════════════════════
+                     SECTION: ANOMALY INSIGHTS
+                ═══════════════════════════════════════════ -->
+                <section
+                    id="section-anomaly-insights"
+                    class="page-section"
+                    data-section="anomaly-insights"
+                    aria-label="Anomaly Insights"
+                >
+
+                    <!-- Anomaly stat cards — rendered by anomalyView.js -->
+                    <div class="anomaly-stats-grid" id="anomaly-stat-cards"></div>
+
+                    <!-- Flagged transaction list — rendered by anomalyView.js -->
+                    <div class="analytics-section-card" id="anomaly-list"></div>
+
+                    <!-- How it works panel — rendered by anomalyView.js -->
+                    <div id="anomaly-how-it-works"></div>
+
+                </section>
+
+
+            </main>
+            <!-- /main.content-area -->
+
+        </div>
+        <!-- /div.main-area -->
+
+    </div>
+    <!-- /div.app-shell -->
+
+    <!-- Application entry point -->
+    <script type="module" src="./js/app.js"></script>
+
 </body>
 </html>

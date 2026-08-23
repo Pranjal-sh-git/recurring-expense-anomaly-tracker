@@ -1,1 +1,246 @@
-/* CSS Styles for reusable UI components */
+/* ============================================================
+   components.css
+   Component-level styles that extend the base design system.
+   Covers: badges, table helpers, form feedback, empty state,
+           delete button, anomaly row highlighting,
+           and new metric card accent overrides.
+   ============================================================ */
+
+
+/* ─── Badges ─────────────────────────────────────────────────────────────────── */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.69rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    line-height: 1.4;
+    vertical-align: middle;
+}
+
+/* Anomaly — soft red/amber warning pill */
+.badge-anomaly {
+    background-color: #fff5f5;
+    color: #c0392b;
+    border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+/* Normal — calm soft green */
+.badge-normal {
+    background-color: #f0fdf6;
+    color: #15803d;
+    border: 1px solid rgba(21, 128, 61, 0.15);
+}
+
+/* Recurring — soft indigo/blue pill */
+.badge-recurring {
+    background-color: #eff6ff;
+    color: #2563eb;
+    border: 1px solid rgba(37, 99, 235, 0.16);
+}
+
+/* One-off — muted neutral */
+.badge-oneoff {
+    background-color: #f8fafc;
+    color: #64748b;
+    border: 1px solid rgba(100, 116, 139, 0.16);
+}
+
+/* Category — soft pastel purple */
+.badge-category {
+    background-color: #faf5ff;
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.14);
+    font-size: 0.7rem;
+}
+
+
+/* ─── Anomaly row highlight ──────────────────────────────────────────────────── */
+
+.row-anomaly td {
+    background-color: #fff9f9 !important;
+}
+
+.row-anomaly:hover td {
+    background-color: #fff1f1 !important;
+}
+
+.row-anomaly .tx-amount {
+    color: var(--danger) !important;
+}
+
+
+/* ─── Delete button ──────────────────────────────────────────────────────────── */
+
+.btn-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: #f7f8fa;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #b0bac5;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.btn-delete:hover {
+    background-color: #fef2f2;
+    border-color: rgba(220, 38, 38, 0.2);
+    color: #dc2626;
+    transform: scale(1.05);
+}
+
+
+/* ─── Transaction table cell helpers ─────────────────────────────────────────── */
+
+.tx-date {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.tx-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.tx-amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+/* Actions column: keep tight */
+.transaction-table td:last-child,
+.transaction-table th:last-child {
+    width: 44px;
+    text-align: center;
+}
+
+
+/* ─── Empty state ────────────────────────────────────────────────────────────── */
+
+.empty-state-cell {
+    text-align: center;
+    padding: 3.5rem 1rem;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.empty-state-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: #f1f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-bottom: 0.4rem;
+    opacity: 0.7;
+}
+
+.empty-state-text {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.empty-state-hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    font-style: italic;
+    max-width: 320px;
+    line-height: 1.5;
+}
+
+
+/* ─── Form feedback messages ─────────────────────────────────────────────────── */
+
+.form-error {
+    display: none;
+    font-size: 0.8rem;
+    color: #dc2626;
+    background-color: #fff5f5;
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.85rem;
+    margin-top: 0.3rem;
+    font-weight: 600;
+}
+
+.form-success-msg {
+    display: none;
+    font-size: 0.8rem;
+    color: #15803d;
+    background-color: #f0fdf6;
+    border: 1px solid rgba(21, 128, 61, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.85rem;
+    margin-top: 0.3rem;
+    font-weight: 600;
+}
+
+
+/* ─── Inline checkbox form-group ─────────────────────────────────────────────── */
+
+.form-group--inline {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.2rem 0;
+    background: #f7f8fa;
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.85rem;
+    border: 1.5px solid #edf1f5;
+}
+
+.form-group--inline input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+}
+
+.form-group--inline label {
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+
+/* ─── Metric card accent overrides ───────────────────────────────────────────── */
+
+#total-expenses-card::before    { background: var(--color-green); }
+#total-transactions-card::before { background: var(--color-blue);  }
+#highest-spending-card::before  { background: var(--color-purple); }
+#recurring-count-card::before   { background: var(--color-green);  }

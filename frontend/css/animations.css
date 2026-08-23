@@ -1,1 +1,161 @@
-/* Custom keyframe animations and transitions */
+/* ============================================================
+   animations.css
+   Smooth, subtle motion for the Expense Anomaly Tracker UI.
+   All animations respect the prefers-reduced-motion media query.
+   ============================================================ */
+
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────────── */
+
+/* Generic fade-up — used by table rows, form feedback, empty states */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Slide in from above — legacy, kept for compatibility */
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Page section transition — used by .page-section--active */
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* Quick highlight flash for newly-inserted rows */
+@keyframes rowHighlight {
+    0%   { background-color: #e0e7ff; }
+    100% { background-color: transparent; }
+}
+
+/* Pulse glow for anomaly rows on first render */
+@keyframes anomalyPulse {
+    0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.3); }
+    70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);   }
+    100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0);   }
+}
+
+/* Sidebar brand entrance */
+@keyframes sidebarBrandIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0);     }
+}
+
+/* Metric card stagger entrance */
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+
+/* ─── App shell entrance ─────────────────────────────────────────────────────── */
+
+.sidebar-brand {
+    animation: sidebarBrandIn 0.4s ease-out both;
+}
+
+.top-navbar {
+    animation: slideInDown 0.3s ease-out both;
+}
+
+
+/* ─── Metric card staggered entrance ─────────────────────────────────────────── */
+
+.metric-card {
+    animation: cardIn 0.4s ease-out both;
+}
+
+.metric-card:nth-child(1) { animation-delay: 0.04s; }
+.metric-card:nth-child(2) { animation-delay: 0.09s; }
+.metric-card:nth-child(3) { animation-delay: 0.14s; }
+.metric-card:nth-child(4) { animation-delay: 0.19s; }
+.metric-card:nth-child(5) { animation-delay: 0.24s; }
+
+
+/* ─── Chart and panel entrance ───────────────────────────────────────────────── */
+
+.chart-card,
+.recent-panel {
+    animation: fadeIn 0.45s ease-out 0.2s both;
+}
+
+/* Analytics section cards */
+.analytics-section-card {
+    animation: fadeIn 0.4s ease-out 0.15s both;
+}
+
+
+/* ─── Table row animations ───────────────────────────────────────────────────── */
+
+.tx-row         { animation: fadeIn 0.22s ease-out both; }
+.empty-state-row { animation: fadeIn 0.32s ease-out both; }
+
+
+/* ─── Form feedback ──────────────────────────────────────────────────────────── */
+
+.form-error,
+.form-success-msg {
+    animation: fadeIn 0.2s ease-out both;
+}
+
+
+/* ─── Recent transaction items ───────────────────────────────────────────────── */
+
+.recent-tx-item {
+    animation: fadeIn 0.28s ease-out both;
+}
+
+
+/* ─── Anomaly items and cards entrance ────────────────────────────────────────── */
+
+@keyframes anomalyItemIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
+}
+
+.anomaly-item,
+.anomaly-tx-card {
+    animation: anomalyItemIn 0.3s ease-out both;
+}
+
+.anomaly-tx-card:nth-child(1) { animation-delay: 0.04s; }
+.anomaly-tx-card:nth-child(2) { animation-delay: 0.09s; }
+.anomaly-tx-card:nth-child(3) { animation-delay: 0.14s; }
+.anomaly-tx-card:nth-child(4) { animation-delay: 0.19s; }
+.anomaly-tx-card:nth-child(5) { animation-delay: 0.24s; }
+
+.anomaly-hero-card {
+    animation: fadeIn 0.35s ease-out both;
+}
+
+/* HiW step cards — delays are handled via inline CSS in main.css */
+.hiw-step-card {
+    animation: fadeIn 0.32s ease-out both;
+}
+
+/* Anomaly stat cards — stagger delays defined in main.css */
+/* .anomaly-stat-card { animation: cardIn 0.38s ease-out both; } */
+
+/* Transaction workspace cards — stagger delays in main.css */
+/* .transactions-form-card, .transactions-table-card { ... } */
+
+/* Filter toolbar entrance */
+.filter-toolbar {
+    animation: fadeIn 0.3s ease-out 0.12s both;
+}
+
+
+/* ─── Respect reduced-motion preference ──────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration:        0.01ms !important;
+        animation-iteration-count: 1      !important;
+        transition-duration:       0.01ms !important;
+    }
+}
