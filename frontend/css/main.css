@@ -1,6 +1,6 @@
 /* ============================================================
    main.css — Core design system, layout, and base components
-   Recurring Expense Anomaly Tracker — Soft Minimal SaaS Theme
+   KharchaSense — Smart Expense & Anomaly Tracker Theme
    ============================================================ */
 
 
@@ -1260,18 +1260,24 @@ textarea {
     gap: 1.25rem;
     margin-top: 0.25rem;
     align-items: start;
+    min-width: 0;
+    width: 100%;
 }
 
 .overview-left-column {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .overview-left-row-1 {
     display: grid;
     grid-template-columns: 1.35fr 1fr;
     gap: 1.25rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .overview-left-row-1 .chart-card {
@@ -1279,6 +1285,9 @@ textarea {
     padding: 1.25rem 1.4rem;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .overview-left-row-1 .chart-card-header {
@@ -1288,17 +1297,24 @@ textarea {
 .overview-left-row-1 .chart-body {
     flex: 1;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
 }
 
 .overview-left-row-2 {
     display: grid;
     grid-template-columns: 1fr 1.1fr;
     gap: 1.25rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .overview-right-column {
     position: sticky;
     top: 0;
+    min-width: 0;
+    width: 100%;
 }
 
 /* Secondary Insight Cards Styling (Recurring vs One-off, Monthly Summary) */
@@ -1312,6 +1328,9 @@ textarea {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .insight-card-header {
@@ -1418,9 +1437,14 @@ textarea {
 }
 
 .summary-row-label {
+    flex: 1;
+    min-width: 0;
     font-size: 0.78rem;
     color: var(--text-secondary);
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .summary-row-value {
@@ -1433,6 +1457,7 @@ textarea {
     display: flex;
     align-items: center;
     gap: 0.45rem;
+    flex-shrink: 0;
 }
 
 .summary-row-value-sub {
@@ -1463,6 +1488,9 @@ textarea {
     height: 585px;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .recent-panel-header {
@@ -1533,6 +1561,8 @@ textarea {
     padding: 0.65rem 0;
     border-bottom: 1px solid rgba(0, 0, 0, 0.03);
     transition: background var(--transition);
+    min-width: 0;
+    width: 100%;
 }
 
 .recent-tx-item:last-child {
@@ -1558,17 +1588,22 @@ textarea {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .recent-tx-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.5rem;
     margin-bottom: 0.1rem;
+    width: 100%;
+    min-width: 0;
 }
 
 .recent-tx-title {
+    flex: 1;
+    min-width: 0;
     font-weight: 700;
     font-size: 0.82rem;
     color: var(--text-primary);
@@ -1594,10 +1629,14 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
 }
 
 .recent-tx-meta {
+    flex: 1;
+    min-width: 0;
     font-size: 0.7rem;
     color: var(--text-secondary);
     font-weight: 500;
@@ -2171,6 +2210,36 @@ select.form-control {
     .amc-value--sm {
         font-size: 1rem !important;
     }
+
+    /* Overview card responsiveness for mobile */
+    .overview-left-row-1 .chart-card {
+        height: auto;
+        min-height: 280px;
+        padding: 1rem 0.85rem;
+    }
+
+    .overview-analytics-card {
+        height: auto;
+        min-height: 200px;
+        padding: 1rem 1.05rem;
+    }
+
+    .recent-panel {
+        height: auto;
+        padding: 1rem 1.05rem;
+    }
+
+    .sbl-percentage {
+        font-size: 1.18rem;
+    }
+
+    .sbl-amount {
+        font-size: 0.8rem;
+    }
+
+    .sbl-label {
+        font-size: 0.7rem;
+    }
 }
 
 /* Tiny screens: 1-column grid */
@@ -2181,6 +2250,19 @@ select.form-control {
 
     .charts-grid {
         grid-template-columns: 1fr;
+    }
+
+    .top-navbar {
+        padding: 0 0.5rem;
+        gap: 0.35rem;
+    }
+
+    .navbar-page-title {
+        font-size: 1.05rem;
+    }
+
+    .user-info {
+        display: none;
     }
 }
 

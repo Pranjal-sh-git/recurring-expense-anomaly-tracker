@@ -24,8 +24,8 @@ import { getCurrentUser }                             from './authService.js';
 function storageKey(userId) {
     const activeId = userId || getCurrentUser()?.id || null;
     return activeId
-        ? `expense_tracker_transactions_${activeId}`
-        : 'expense_tracker_transactions_guest';
+        ? `kharchasense_transactions_${activeId}`
+        : 'kharchasense_transactions_guest';
 }
 
 // ─── LocalStorage helpers ─────────────────────────────────────────────────────
@@ -57,14 +57,18 @@ export function loadTransactions(userId) {
         const key = storageKey(activeId);
         let raw = localStorage.getItem(key);
 
-        // If demo user and user-specific key is not set yet, migrate legacy un-scoped transactions
-        if (!raw && activeId === 'user_demo_001') {
-            raw = localStorage.getItem('expense_tracker_transactions');
+        // Check legacy storage keys if new key is empty
+        if (!raw) {
+            const legacyKey = activeId ? `expense_tracker_transactions_${activeId}` : 'expense_tracker_transactions_guest';
+            raw = localStorage.getItem(legacyKey);
+            if (!raw && activeId === 'user_demo_001') {
+                raw = localStorage.getItem('expense_tracker_transactions');
+            }
             if (raw) {
                 try {
                     localStorage.setItem(key, raw);
                 } catch (e) {
-                    console.warn('Could not migrate demo data:', e);
+                    console.warn('Could not migrate transaction data:', e);
                 }
             }
         }

@@ -1,4 +1,4 @@
-# 💸 ExpenseTrack — Recurring & Anomaly Expense Tracker
+# 💸 KharchaSense — Smart Expense & Anomaly Tracker
 
 > A fully client-side expense intelligence web application that helps you track recurring expenses, analyze spending patterns, bulk import data via CSV, and automatically detect anomalous transactions using statistical methods.
 
@@ -18,7 +18,7 @@
 
 ## 📖 Project Description
 
-**ExpenseTrack** is a Vanilla JavaScript single-page application (SPA) designed to give users complete visibility into their financial transactions. It runs entirely in the browser with **no backend** — all data is persisted using `localStorage`, making it zero-dependency and instantly deployable.
+**KharchaSense** is a Vanilla JavaScript single-page application (SPA) designed to give users complete visibility into their financial transactions. It runs entirely in the browser with **no backend** — all data is persisted using `localStorage`, making it zero-dependency and instantly deployable.
 
 ### Key Features
 
@@ -287,7 +287,7 @@ A pre-configured demo account is included for immediate testing:
 
 | Field | Value |
 |---|---|
-| **Email** | `test@expensetrack.app` |
+| **Email** | `test@kharchasense.app` |
 | **Password** | `password123` |
 
 > 💡 **Data Isolation:** You can create new accounts freely. Each account maintains its own isolated transactions bucket in `localStorage`.
