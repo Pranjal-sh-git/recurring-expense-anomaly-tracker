@@ -7,20 +7,19 @@
 import { getCategorySpendingData, getDailySpendingData } from './analyticsService.js';
 import { formatCurrency } from '../utils/formatters.js';
 
-// Curated modern color palette for categories and trend charts
+// Curated modern color palette for categories and trend charts (green primary accent)
 const CHART_PALETTE = [
-  '#6366f1', // Indigo
-  '#10b981', // Emerald
-  '#f59e0b', // Amber
-  '#06b6d4', // Cyan
-  '#f43f5e', // Rose
-  '#8b5cf6', // Violet
+  '#5BC236', // Primary Accent (Green)
   '#3b82f6', // Blue
-  '#ec4899', // Pink
+  '#8b5cf6', // Violet
+  '#06b6d4', // Cyan
+  '#f59e0b', // Amber
+  '#64748b', // Slate
   '#14b8a6', // Teal
-  '#84cc16', // Lime
+  '#ec4899', // Pink
+  '#6366f1', // Indigo
   '#eab308', // Yellow
-  '#64748b'  // Slate
+  '#94a3b8'  // Muted Slate
 ];
 
 // Internal registry to track active chart instances and prevent duplicate charts
@@ -332,9 +331,9 @@ function renderDailyTrendFallback(container, chartData) {
   // Data node circles & text labels
   const nodesSvg = points.map((p) => `
     <g class="chart-node">
-      <circle cx="${p.x}" cy="${p.y}" r="5" fill="#ffffff" stroke="#6366f1" stroke-width="3"/>
-      <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" fill="#0f172a" font-size="11" font-weight="700" font-family="Inter, system-ui, sans-serif">${p.formatted}</text>
-      <text x="${p.x}" y="${svgHeight - 12}" text-anchor="middle" fill="#475569" font-size="11" font-weight="600" font-family="Inter, system-ui, sans-serif">${p.displayDate}</text>
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="#ffffff" stroke="#5BC236" stroke-width="3"/>
+      <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" fill="#20242a" font-size="11" font-weight="700" font-family="Inter, system-ui, sans-serif">${p.formatted}</text>
+      <text x="${p.x}" y="${svgHeight - 12}" text-anchor="middle" fill="#7a828c" font-size="11" font-weight="600" font-family="Inter, system-ui, sans-serif">${p.displayDate}</text>
     </g>
   `).join('');
 
@@ -345,19 +344,19 @@ function renderDailyTrendFallback(container, chartData) {
       <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; height:200px; min-width:${svgWidth}px; display:block;">
         <defs>
           <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
-            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
+            <stop offset="0%" stop-color="#5BC236" stop-opacity="0.22"/>
+            <stop offset="100%" stop-color="#5BC236" stop-opacity="0.0"/>
           </linearGradient>
         </defs>
 
         <!-- Horizontal grid lines -->
-        <line x1="${padX}" y1="${padTop}" x2="${svgWidth - padX}" y2="${padTop}" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-        <line x1="${padX}" y1="${padTop + chartH / 2}" x2="${svgWidth - padX}" y2="${padTop + chartH / 2}" stroke="#f1f5f9" stroke-dasharray="3,3"/>
-        <line x1="${padX}" y1="${svgHeight - padBottom}" x2="${svgWidth - padX}" y2="${svgHeight - padBottom}" stroke="#e2e8f0"/>
+        <line x1="${padX}" y1="${padTop}" x2="${svgWidth - padX}" y2="${padTop}" stroke="#edf1f5" stroke-dasharray="3,3"/>
+        <line x1="${padX}" y1="${padTop + chartH / 2}" x2="${svgWidth - padX}" y2="${padTop + chartH / 2}" stroke="#f4f6f8" stroke-dasharray="3,3"/>
+        <line x1="${padX}" y1="${svgHeight - padBottom}" x2="${svgWidth - padX}" y2="${svgHeight - padBottom}" stroke="#edf1f5"/>
 
         <!-- Area fill & Line path -->
         <path d="${areaD}" fill="url(#${gradientId})" />
-        <path d="${lineD}" fill="none" stroke="#6366f1" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${lineD}" fill="none" stroke="#5BC236" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
 
         <!-- Data nodes -->
         ${nodesSvg}
@@ -406,6 +405,7 @@ export function renderCategorySpendingChart(target, data, options = {}) {
       destroyChart(canvas);
     }
 
+    const isBar = options.type === 'bar' || options.chartOptions?.indexAxis === 'y';
     const backgroundColors = normalized.labels.map((_, i) => CHART_PALETTE[i % CHART_PALETTE.length]);
 
     try {
@@ -418,21 +418,31 @@ export function renderCategorySpendingChart(target, data, options = {}) {
               label: 'Spending by Category',
               data: normalized.data,
               backgroundColor: backgroundColors,
-              borderColor: options.borderColor || '#ffffff',
-              borderWidth: options.borderWidth !== undefined ? options.borderWidth : 2,
-              hoverOffset: 4
+              borderColor: isBar ? 'transparent' : (options.borderColor || '#ffffff'),
+              borderWidth: isBar ? 0 : (options.borderWidth !== undefined ? options.borderWidth : 2),
+              borderRadius: isBar ? 8 : 0,
+              borderSkipped: false,
+              maxBarThickness: isBar ? 22 : undefined,
+              hoverOffset: isBar ? 0 : 4
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: options.maintainAspectRatio !== undefined ? options.maintainAspectRatio : false,
+          indexAxis: isBar ? 'y' : 'x',
+          layout: {
+            padding: isBar ? { right: 16, left: 4, top: 4, bottom: 4 } : { top: 4, bottom: 4 }
+          },
           plugins: {
             legend: {
+              display: isBar ? false : true,
               position: options.legendPosition || 'bottom',
               labels: {
-                boxWidth: 12,
-                font: { size: 12 }
+                boxWidth: 10,
+                boxHeight: 10,
+                padding: 12,
+                font: { size: 11, weight: 600, family: 'Inter, system-ui, sans-serif' }
               }
             },
             tooltip: {
@@ -444,6 +454,26 @@ export function renderCategorySpendingChart(target, data, options = {}) {
               }
             }
           },
+          scales: isBar ? {
+            x: {
+              beginAtZero: true,
+              grid: { color: '#f1f4f6', drawBorder: false },
+              ticks: {
+                font: { size: 10, family: 'Inter, system-ui, sans-serif' },
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 5,
+                callback: (v) => formatCurrency(v)
+              }
+            },
+            y: {
+              grid: { display: false, drawBorder: false },
+              ticks: {
+                font: { size: 11, weight: 600, family: 'Inter, system-ui, sans-serif' },
+                color: '#475569'
+              }
+            }
+          } : undefined,
           ...options.chartOptions
         }
       });
@@ -531,14 +561,16 @@ export function renderDailySpendingChart(target, data, options = {}) {
             {
               label: 'Daily Spending',
               data: normalized.data,
-              borderColor: options.borderColor || '#6366f1',
-              backgroundColor: options.backgroundColor || 'rgba(99, 102, 241, 0.1)',
-              borderWidth: 2,
-              tension: 0.3,
+              borderColor: options.borderColor || '#5BC236',
+              backgroundColor: options.backgroundColor || 'rgba(91, 194, 54, 0.12)',
+              borderWidth: 3,
+              tension: 0.35,
               fill: true,
-              pointBackgroundColor: '#6366f1',
-              pointRadius: 4,
-              pointHoverRadius: 6
+              pointBackgroundColor: '#ffffff',
+              pointBorderColor: '#5BC236',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 7
             }
           ]
         },

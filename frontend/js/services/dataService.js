@@ -16,10 +16,17 @@
  */
 
 import { validateTransaction, normalizeTransaction } from '../utils/validators.js';
+import { getCurrentUser }                             from './authService.js';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'expense_tracker_transactions';
+/** @param {string|null} [userId] */
+function storageKey(userId) {
+    const activeId = userId || getCurrentUser()?.id || null;
+    return activeId
+        ? `expense_tracker_transactions_${activeId}`
+        : 'expense_tracker_transactions_guest';
+}
 
 // ─── LocalStorage helpers ─────────────────────────────────────────────────────
 
@@ -38,14 +45,30 @@ function isLocalStorageAvailable() {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Load all saved transactions from LocalStorage.
+ * Load all saved transactions from LocalStorage for the given user.
  * Returns an empty array if nothing is stored or the data is corrupted.
+ * @param {string|null} [userId]
  * @returns {Array<Object>}
  */
-export function loadTransactions() {
+export function loadTransactions(userId) {
     if (!isLocalStorageAvailable()) return [];
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const activeId = userId || getCurrentUser()?.id || null;
+        const key = storageKey(activeId);
+        let raw = localStorage.getItem(key);
+
+        // If demo user and user-specific key is not set yet, migrate legacy un-scoped transactions
+        if (!raw && activeId === 'user_demo_001') {
+            raw = localStorage.getItem('expense_tracker_transactions');
+            if (raw) {
+                try {
+                    localStorage.setItem(key, raw);
+                } catch (e) {
+                    console.warn('Could not migrate demo data:', e);
+                }
+            }
+        }
+
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         // Guard against stored non-array values
@@ -57,15 +80,17 @@ export function loadTransactions() {
 }
 
 /**
- * Persist an array of transactions to LocalStorage.
+ * Persist an array of transactions to LocalStorage for the given user.
  * @param {Array<Object>} transactions
+ * @param {string|null} [userId]
  * @returns {boolean} True if saved successfully, false on error.
  */
-export function saveTransactions(transactions) {
+export function saveTransactions(transactions, userId) {
     if (!isLocalStorageAvailable()) return false;
     try {
         const list = Array.isArray(transactions) ? transactions : [];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        const key = storageKey(userId);
+        localStorage.setItem(key, JSON.stringify(list));
         return true;
     } catch (error) {
         console.error('dataService.saveTransactions: failed to persist data.', error);
@@ -74,13 +99,15 @@ export function saveTransactions(transactions) {
 }
 
 /**
- * Remove all persisted transaction data from LocalStorage.
+ * Remove all persisted transaction data from LocalStorage for the given user.
+ * @param {string|null} [userId]
  * @returns {boolean} True if cleared successfully, false on error.
  */
-export function clearTransactions() {
+export function clearTransactions(userId) {
     if (!isLocalStorageAvailable()) return false;
     try {
-        localStorage.removeItem(STORAGE_KEY);
+        const key = storageKey(userId);
+        localStorage.removeItem(key);
         return true;
     } catch (error) {
         console.error('dataService.clearTransactions: failed to clear data.', error);

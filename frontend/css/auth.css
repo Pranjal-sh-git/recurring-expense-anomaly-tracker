@@ -1,0 +1,470 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   EXPENSETRACK — Premium SaaS Glassmorphism Auth Modal (auth.css)
+   Linear / Stripe / Vercel-inspired minimal, high-end modal overlay
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Backdrop Overlay ───────────────────────────────────────────────────────── */
+
+.auth-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(9, 13, 20, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+}
+
+.auth-modal-backdrop.auth-modal--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ─── Glassmorphism Modal Card ───────────────────────────────────────────────── */
+
+.auth-modal-container {
+    width: 100%;
+    max-width: 440px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 
+        0 0 0 1px rgba(0, 0, 0, 0.05),
+        0 24px 60px -12px rgba(15, 23, 42, 0.18),
+        0 12px 28px -6px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    padding: 2.25rem 2rem 2rem;
+    box-sizing: border-box;
+    position: relative;
+    transform: translateY(24px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #111827;
+}
+
+.auth-modal-backdrop.auth-modal--visible .auth-modal-container {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+/* Subtle top glass reflection highlight */
+.auth-modal-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(91, 194, 54, 0.4), transparent);
+    border-radius: 9999px;
+}
+
+/* ─── Close Button ───────────────────────────────────────────────────────────── */
+
+.auth-close-btn {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 0;
+}
+
+.auth-close-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #0f172a;
+    transform: scale(1.08);
+}
+
+/* ─── Header: Brand & Welcome ────────────────────────────────────────────────── */
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+.auth-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    background: rgba(91, 194, 54, 0.1);
+    border: 1px solid rgba(91, 194, 54, 0.2);
+    color: #4ea82e;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.85rem;
+}
+
+.auth-brand-icon {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-title {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.03em;
+    margin: 0 0 0.4rem 0;
+    line-height: 1.25;
+}
+
+.auth-subtitle {
+    font-size: 0.86rem;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.5;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ─── Segmented Switcher [ Sign In | Create Account ] ────────────────────────── */
+
+.auth-tabs-nav {
+    display: flex;
+    background: #f1f5f9;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 1.5rem;
+    position: relative;
+    gap: 4px;
+}
+
+.auth-tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 0.6rem 0.75rem;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-tab-btn:hover {
+    color: #0f172a;
+}
+
+.auth-tab-btn.auth-tab--active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Form Container & Transition ────────────────────────────────────────────── */
+
+.auth-forms-wrapper {
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-form-view {
+    display: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-form-view.auth-form--active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ─── Form Field Groups ──────────────────────────────────────────────────────── */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.auth-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-align: left;
+}
+
+.auth-field-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.auth-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.auth-input {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.72rem 0.95rem;
+    font-size: 0.88rem;
+    color: #0f172a;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    outline: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.auth-input::placeholder {
+    color: #94a3b8;
+    font-size: 0.84rem;
+}
+
+.auth-input:focus {
+    border-color: #5BC236;
+    box-shadow: 0 0 0 3px rgba(91, 194, 54, 0.15), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.auth-input--has-icon {
+    padding-right: 2.6rem;
+}
+
+/* Hide browser native password reveal & clear icons (Edge/IE/Chrome) */
+.auth-input::-ms-reveal,
+.auth-input::-ms-clear,
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
+}
+
+.auth-password-toggle {
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.auth-password-toggle:hover {
+    color: #475569;
+}
+
+/* ─── Options Row (Remember Me & Forgot Password) ────────────────────────────── */
+
+.auth-options-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    margin-top: -0.2rem;
+    margin-bottom: 0.2rem;
+}
+
+.auth-remember-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+}
+
+.auth-remember-checkbox {
+    accent-color: #5BC236;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.auth-forgot-link {
+    color: #5BC236;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+.auth-forgot-link:hover {
+    color: #4ea82e;
+    text-decoration: underline;
+}
+
+/* ─── Inline Error Alert ─────────────────────────────────────────────────────── */
+
+.auth-error-alert {
+    background: #fef2f2;
+    border: 1px solid #fee2e2;
+    border-radius: 10px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.8rem;
+    color: #dc2626;
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    animation: authErrorShake 0.3s ease;
+}
+
+.auth-error-alert.auth-error--show {
+    display: flex;
+}
+
+@keyframes authErrorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* ─── Primary Submit Button with Loading/Success States ──────────────────────── */
+
+.auth-submit-btn {
+    width: 100%;
+    background: #5BC236;
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 0.85rem 1.25rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 14px rgba(91, 194, 54, 0.35);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    margin-top: 0.35rem;
+    position: relative;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+    background: #4ea82e;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(91, 194, 54, 0.45);
+}
+
+.auth-submit-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.8;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.auth-submit-btn svg {
+    transition: transform 0.2s ease;
+}
+
+.auth-submit-btn:hover:not(:disabled) svg {
+    transform: translateX(3px);
+}
+
+/* Spinner */
+.auth-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: authSpin 0.6s linear infinite;
+    display: inline-block;
+}
+
+@keyframes authSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Success state button styling */
+.auth-submit-btn.auth-submit--success {
+    background: #15803d !important;
+    box-shadow: 0 4px 14px rgba(21, 128, 61, 0.4) !important;
+}
+
+/* ─── Footer Demo Credential Hint ────────────────────────────────────────────── */
+
+.auth-demo-hint {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 0.74rem;
+    color: #64748b;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.auth-demo-hint code {
+    background: #f1f5f9;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    color: #0f172a;
+    font-family: monospace;
+    font-weight: 600;
+}
+
+/* ─── Mobile Responsiveness ──────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+    .auth-modal-backdrop {
+        padding: 1rem;
+    }
+
+    .auth-modal-container {
+        padding: 1.75rem 1.25rem 1.5rem;
+        border-radius: 20px;
+    }
+
+    .auth-title {
+        font-size: 1.25rem;
+    }
+
+    .auth-subtitle {
+        font-size: 0.8rem;
+    }
+}

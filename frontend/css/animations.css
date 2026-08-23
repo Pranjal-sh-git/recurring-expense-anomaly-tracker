@@ -82,6 +82,11 @@
     animation: fadeIn 0.45s ease-out 0.2s both;
 }
 
+/* Analytics section cards */
+.analytics-section-card {
+    animation: fadeIn 0.4s ease-out 0.15s both;
+}
+
 
 /* ─── Table row animations ───────────────────────────────────────────────────── */
 
@@ -104,14 +109,43 @@
 }
 
 
-/* ─── Anomaly item entrance ───────────────────────────────────────────────────── */
+/* ─── Anomaly items and cards entrance ────────────────────────────────────────── */
 
 @keyframes anomalyItemIn {
-    from { opacity: 0; transform: translateX(-8px); }
-    to   { opacity: 1; transform: translateX(0);    }
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0);   }
 }
 
-.anomaly-item { animation: anomalyItemIn 0.28s ease-out both; }
+.anomaly-item,
+.anomaly-tx-card {
+    animation: anomalyItemIn 0.3s ease-out both;
+}
+
+.anomaly-tx-card:nth-child(1) { animation-delay: 0.04s; }
+.anomaly-tx-card:nth-child(2) { animation-delay: 0.09s; }
+.anomaly-tx-card:nth-child(3) { animation-delay: 0.14s; }
+.anomaly-tx-card:nth-child(4) { animation-delay: 0.19s; }
+.anomaly-tx-card:nth-child(5) { animation-delay: 0.24s; }
+
+.anomaly-hero-card {
+    animation: fadeIn 0.35s ease-out both;
+}
+
+/* HiW step cards — delays are handled via inline CSS in main.css */
+.hiw-step-card {
+    animation: fadeIn 0.32s ease-out both;
+}
+
+/* Anomaly stat cards — stagger delays defined in main.css */
+/* .anomaly-stat-card { animation: cardIn 0.38s ease-out both; } */
+
+/* Transaction workspace cards — stagger delays in main.css */
+/* .transactions-form-card, .transactions-table-card { ... } */
+
+/* Filter toolbar entrance */
+.filter-toolbar {
+    animation: fadeIn 0.3s ease-out 0.12s both;
+}
 
 
 /* ─── Respect reduced-motion preference ──────────────────────────────────────── */

@@ -83,45 +83,64 @@ export function updateAnomalyView(transactions, analyzed) {
 
 function _buildEmptyStats() {
     return `
-        <div class="anomaly-stat-card">
-            <div class="asc-icon-wrap asc-icon-wrap--neutral">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+        <div class="anomaly-hero-card">
+            <div class="anomaly-hero-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                 </svg>
             </div>
-            <div class="asc-body">
-                <div class="asc-label">Anomalies Detected</div>
-                <div class="asc-value">0</div>
+            <div class="anomaly-hero-text">
+                <h2 class="anomaly-hero-title">Expense Intelligence</h2>
+                <p class="anomaly-hero-desc">Statistical outlier detection and pattern analysis across all expense categories.</p>
+            </div>
+            <div class="anomaly-hero-badge anomaly-hero-badge--good">
+                <span class="status-pulse-dot" style="background:#5BC236;"></span>
+                <span>System Active</span>
             </div>
         </div>
-        <div class="anomaly-stat-card">
-            <div class="asc-icon-wrap asc-icon-wrap--neutral">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
+
+        <div class="anomaly-stats-row">
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="asc-icon-wrap asc-icon-wrap--good">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Anomalies Detected</span>
+                </div>
+                <div class="asc-value asc-value--good">0</div>
+                <div class="asc-sub">0 total transactions</div>
             </div>
-            <div class="asc-body">
-                <div class="asc-label">Anomaly Rate</div>
-                <div class="asc-value">0.00%</div>
+
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="asc-icon-wrap asc-icon-wrap--good">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Anomaly Rate</span>
+                </div>
+                <div class="asc-value asc-value--good">0.00%</div>
+                <div class="asc-sub">of recorded expenses</div>
             </div>
-        </div>
-        <div class="anomaly-stat-card">
-            <div class="asc-icon-wrap asc-icon-wrap--neutral">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-                    <line x1="7" y1="7" x2="7.01" y2="7"/>
-                </svg>
-            </div>
-            <div class="asc-body">
-                <div class="asc-label">Categories Affected</div>
-                <div class="asc-value">0</div>
+
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="asc-icon-wrap asc-icon-wrap--good">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                            <line x1="7" y1="7" x2="7.01" y2="7"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Categories Affected</span>
+                </div>
+                <div class="asc-value asc-value--good">0</div>
+                <div class="asc-sub">categories with outliers</div>
             </div>
         </div>
     `;
@@ -131,52 +150,74 @@ function _buildStatCards(summary, categoriesAffected) {
     const rateStr = summary.anomalyRate.toFixed(2);
     const hasAnomalies = summary.anomalyCount > 0;
 
-    const cardClass = hasAnomalies ? 'anomaly-stat-card anomaly-stat-card--alert' : 'anomaly-stat-card';
-    const iconClass  = hasAnomalies ? 'asc-icon-wrap asc-icon-wrap--danger'        : 'asc-icon-wrap asc-icon-wrap--good';
-    const valClass   = hasAnomalies ? 'asc-value asc-value--danger'                 : 'asc-value asc-value--good';
+    const heroBadgeClass = hasAnomalies ? 'anomaly-hero-badge anomaly-hero-badge--alert' : 'anomaly-hero-badge anomaly-hero-badge--good';
+    const heroBadgeText  = hasAnomalies ? `${summary.anomalyCount} Outlier${summary.anomalyCount !== 1 ? 's' : ''} Flagged` : 'All Normal';
+    const heroDotColor   = hasAnomalies ? '#d95b52' : '#5BC236';
+
+    const iconClass = hasAnomalies ? 'asc-icon-wrap asc-icon-wrap--danger' : 'asc-icon-wrap asc-icon-wrap--good';
+    const valClass  = hasAnomalies ? 'asc-value asc-value--danger'          : 'asc-value asc-value--good';
 
     return `
-        <div class="${cardClass}">
-            <div class="${iconClass}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+        <div class="anomaly-hero-card">
+            <div class="anomaly-hero-icon ${hasAnomalies ? 'anomaly-hero-icon--alert' : ''}" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                 </svg>
             </div>
-            <div class="asc-body">
-                <div class="asc-label">Anomalies Detected</div>
+            <div class="anomaly-hero-text">
+                <h2 class="anomaly-hero-title">Expense Intelligence</h2>
+                <p class="anomaly-hero-desc">
+                    ${hasAnomalies
+                        ? `Found ${summary.anomalyCount} transaction${summary.anomalyCount !== 1 ? 's' : ''} deviating significantly from category spending baselines.`
+                        : 'Continuous statistical analysis across all recorded categories. No abnormal outliers detected.'}
+                </p>
+            </div>
+            <div class="${heroBadgeClass}">
+                <span class="status-pulse-dot" style="background:${heroDotColor};"></span>
+                <span>${heroBadgeText}</span>
+            </div>
+        </div>
+
+        <div class="anomaly-stats-row">
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="${iconClass}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Anomalies Detected</span>
+                </div>
                 <div class="${valClass}">${summary.anomalyCount}</div>
                 <div class="asc-sub">of ${summary.totalTransactions} transaction${summary.totalTransactions !== 1 ? 's' : ''}</div>
             </div>
-        </div>
 
-        <div class="anomaly-stat-card">
-            <div class="${iconClass}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 6v6l4 2"/>
-                </svg>
-            </div>
-            <div class="asc-body">
-                <div class="asc-label">Anomaly Rate</div>
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="${iconClass}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Anomaly Rate</span>
+                </div>
                 <div class="${valClass}">${rateStr}%</div>
-                <div class="asc-sub">of all recorded transactions</div>
+                <div class="asc-sub">of all recorded expenses</div>
             </div>
-        </div>
 
-        <div class="anomaly-stat-card">
-            <div class="${iconClass}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
-                    <line x1="7" y1="7" x2="7.01" y2="7"/>
-                </svg>
-            </div>
-            <div class="asc-body">
-                <div class="asc-label">Categories Affected</div>
+            <div class="anomaly-stat-card">
+                <div class="asc-top">
+                    <span class="${iconClass}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
+                            <line x1="7" y1="7" x2="7.01" y2="7"/>
+                        </svg>
+                    </span>
+                    <span class="asc-label">Categories Affected</span>
+                </div>
                 <div class="${valClass}">${categoriesAffected}</div>
                 <div class="asc-sub">spending ${categoriesAffected === 1 ? 'category' : 'categories'} with outliers</div>
             </div>
@@ -188,72 +229,64 @@ function _buildEmptyAnomalyList() {
     return `
         <div class="anomaly-empty-state">
             <div class="anomaly-empty-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                     stroke-linecap="round" stroke-linejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#5BC236" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
                     <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
             </div>
-            <h3 class="anomaly-empty-title">No unusual spending patterns detected</h3>
+            <h3 class="anomaly-empty-title">Everything looks normal</h3>
             <p class="anomaly-empty-desc">
-                Your transactions look normal. Anomalies appear when a transaction in a category
-                significantly deviates from the average for that category.
-                Add more transactions across the same category to enable detection.
+                No unusual spending patterns were detected across your expense categories.
+                The anomaly detection engine automatically computes Z-Scores (threshold ≥ 2.0σ) to flag outliers when new entries are recorded.
             </p>
+            <span class="anomaly-empty-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                All spending patterns within normal range
+            </span>
         </div>
     `;
 }
 
 function _buildAnomalyList(anomalies) {
-    // Sort by absolute Z-Score descending (most extreme first)
+    // Sort by absolute Z-Score descending (most severe deviation first)
     const sorted = [...anomalies].sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
 
     const items = sorted.map((tx, idx) => {
         const displayDate = formatDate(tx.date, 'medium') || tx.date || '--';
-        const zAbs        = Math.abs(tx.zScore || 0);
-        const direction   = (tx.zScore || 0) > 0 ? 'above' : 'below';
-        const severity    = zAbs >= 3 ? 'high' : 'medium';
+        const zVal        = Number(tx.zScore || 0);
+        const zStr        = (zVal > 0 ? '+' : '') + zVal.toFixed(2);
         const title       = _esc(tx.title || 'Untitled');
         const category    = _esc(tx.category || '--');
+        const avgAmt      = formatCurrency(tx.categoryMean || 0);
 
         return `
-            <div class="anomaly-item anomaly-item--${severity}" style="animation-delay:${idx * 0.06}s">
-                <div class="anomaly-item-header">
-                    <div class="anomaly-item-left">
-                        <span class="anomaly-item-icon" aria-hidden="true">⚠</span>
-                        <div class="anomaly-item-info">
-                            <span class="anomaly-item-title">${title}</span>
-                            <span class="anomaly-item-meta">${category} · ${displayDate}</span>
-                        </div>
+            <div class="anomaly-tx-card" style="animation-delay:${idx * 0.05}s">
+                <div class="atc-left">
+                    <div class="atc-icon-badge" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
                     </div>
-                    <div class="anomaly-item-right">
-                        <span class="anomaly-item-amount">${formatCurrency(tx.amount)}</span>
-                        <span class="badge badge-anomaly">Anomaly</span>
+                    <div class="atc-info">
+                        <div class="atc-title-row">
+                            <span class="atc-title">${title}</span>
+                            <span class="badge badge-anomaly">⚠ Outlier</span>
+                        </div>
+                        <div class="atc-meta">${category} · ${displayDate} · Category Avg: ${avgAmt}</div>
+                        ${tx.anomalyReason ? `
+                            <p class="atc-explanation">${_esc(tx.anomalyReason)}</p>
+                        ` : `
+                            <p class="atc-explanation">${formatCurrency(tx.amount)} is statistically unusual compared to the ${category} category average of ${avgAmt}.</p>
+                        `}
                     </div>
                 </div>
-                <div class="anomaly-item-detail">
-                    <div class="anomaly-item-zscore">
-                        <span class="zscore-label">Z-Score</span>
-                        <span class="zscore-value zscore-value--${direction === 'above' ? 'high' : 'low'}">
-                            ${(tx.zScore || 0) > 0 ? '+' : ''}${(tx.zScore || 0).toFixed(2)}
-                        </span>
-                    </div>
-                    <div class="anomaly-item-stats">
-                        <span>Category avg: ${formatCurrency(tx.categoryMean || 0)}</span>
-                        <span class="anomaly-dot" aria-hidden="true">·</span>
-                        <span>This tx is ${direction} average</span>
-                    </div>
-                    ${tx.anomalyReason ? `
-                        <div class="anomaly-item-reason">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                 stroke-linecap="round" stroke-linejoin="round" class="reason-icon" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10"/>
-                                <line x1="12" y1="8" x2="12" y2="12"/>
-                                <line x1="12" y1="16" x2="12.01" y2="16"/>
-                            </svg>
-                            ${_esc(tx.anomalyReason)}
-                        </div>
-                    ` : ''}
+                <div class="atc-right">
+                    <span class="atc-amount">${formatCurrency(tx.amount)}</span>
+                    <span class="atc-zscore-badge" title="Statistical standard deviation score">
+                        Z-Score: ${zStr}
+                    </span>
                 </div>
             </div>
         `;
@@ -261,12 +294,13 @@ function _buildAnomalyList(anomalies) {
 
     return `
         <div class="anomaly-list-header">
-            <h3 class="anomaly-list-title">
-                ${anomalies.length} Flagged Transaction${anomalies.length !== 1 ? 's' : ''}
-            </h3>
-            <span class="anomaly-list-sub">Sorted by deviation severity</span>
+            <div>
+                <h3 class="chart-card-title">${anomalies.length} Flagged Transaction${anomalies.length !== 1 ? 's' : ''}</h3>
+                <span class="chart-card-desc">Ranked by statistical deviation from category baseline</span>
+            </div>
+            <span class="atc-zscore-badge" style="background:#fdf2f1;color:var(--danger);border:1px solid rgba(217,91,82,0.14);">⚠ ${anomalies.length} Outlier${anomalies.length !== 1 ? 's' : ''}</span>
         </div>
-        <div class="anomaly-list-items">
+        <div class="anomaly-cards-grid">
             ${items}
         </div>
     `;
@@ -277,49 +311,43 @@ function _buildHowItWorks() {
         <div class="how-it-works-card">
             <div class="hiw-header">
                 <div class="hiw-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"
-                         stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        <line x1="12" y1="16" x2="12" y2="12"/>
+                        <line x1="12" y1="8" x2="12.01" y2="8"/>
                     </svg>
                 </div>
-                <h3 class="hiw-title">How Anomaly Detection Works</h3>
+                <div>
+                    <h3 class="chart-card-title">How Anomaly Detection Works</h3>
+                    <span class="chart-card-desc">Transparent statistical outlier model (Z-Score ≥ 2.0σ)</span>
+                </div>
             </div>
-            <div class="hiw-body">
-                <p>
-                    This application uses <strong>category-based statistical analysis</strong>
-                    to identify unusual transactions in your spending history.
-                </p>
-                <ol class="hiw-steps">
-                    <li>
-                        <span class="hiw-step-num">1</span>
-                        <span><strong>Group by category</strong> — Transactions are grouped
-                        by their spending category (e.g., Groceries, Subscriptions).</span>
-                    </li>
-                    <li>
-                        <span class="hiw-step-num">2</span>
-                        <span><strong>Calculate baseline</strong> — The mean and standard
-                        deviation of all amounts within each category are computed.</span>
-                    </li>
-                    <li>
-                        <span class="hiw-step-num">3</span>
-                        <span><strong>Compute Z-Score</strong> — Each transaction is compared
-                        to its category baseline using a Z-Score, which measures how many
-                        standard deviations it falls from the category average.</span>
-                    </li>
-                    <li>
-                        <span class="hiw-step-num">4</span>
-                        <span><strong>Flag outliers</strong> — Transactions with an absolute
-                        Z-Score of <strong>2 or greater</strong> are flagged as anomalies.
-                        A minimum of 2 transactions per category is required before detection
-                        activates.</span>
-                    </li>
-                </ol>
-                <p class="hiw-note">
-                    ℹ️ No machine learning is used. The detection is fully transparent and
-                    based on classical statistical methods.
-                </p>
+            <div class="hiw-grid">
+                <div class="hiw-step-card">
+                    <span class="hiw-step-num">1</span>
+                    <h4 class="hiw-step-title">Category Grouping</h4>
+                    <p class="hiw-step-desc">Transactions are grouped by category to evaluate peer spending patterns within a shared context.</p>
+                </div>
+                <div class="hiw-step-card">
+                    <span class="hiw-step-num">2</span>
+                    <h4 class="hiw-step-title">Mean Calculation</h4>
+                    <p class="hiw-step-desc">The average spend (μ) is calculated per category using all transactions in that group.</p>
+                </div>
+                <div class="hiw-step-card">
+                    <span class="hiw-step-num">3</span>
+                    <h4 class="hiw-step-title">Std. Deviation</h4>
+                    <p class="hiw-step-desc">Standard deviation (σ) is computed to measure how spread out the spending values are within each category.</p>
+                </div>
+                <div class="hiw-step-card">
+                    <span class="hiw-step-num">4</span>
+                    <h4 class="hiw-step-title">Z-Score Formula</h4>
+                    <p class="hiw-step-desc">Z = (x − μ) / σ calculates how many standard deviations a specific amount sits from the category normal.</p>
+                </div>
+                <div class="hiw-step-card">
+                    <span class="hiw-step-num">5</span>
+                    <h4 class="hiw-step-title">Outlier Flagging</h4>
+                    <p class="hiw-step-desc">Transactions where |Z| ≥ 2.0 are flagged as anomalies with contextual statistical explanations.</p>
+                </div>
             </div>
         </div>
     `;

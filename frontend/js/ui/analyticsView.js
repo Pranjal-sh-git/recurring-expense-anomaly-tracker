@@ -94,18 +94,9 @@ export function updateAnalyticsView(transactions, analyzed) {
     }));
 
     // ── 2. Charts (Analytics-specific containers) ──
-    renderDailySpendingChart(IDS.dailyChart,    transactions);
+    renderDailySpendingChart(IDS.dailyChart, transactions);
     renderCategorySpendingChart(IDS.categoryChart, transactions, {
-        type: 'bar',
-        chartOptions: {
-            indexAxis: 'y',
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: { callback: v => formatCurrency(v) },
-                },
-            },
-        },
+        type: 'bar'
     });
 
     // ── 3. Recurring vs One-off bar ──
@@ -120,25 +111,63 @@ export function updateAnalyticsView(transactions, analyzed) {
 
 // ─── Private builders ─────────────────────────────────────────────────────────
 
+// Curated modern color palette aligned with charts.js
+const PALETTE = [
+    '#5BC236', '#3b82f6', '#8b5cf6', '#06b6d4',
+    '#f59e0b', '#64748b', '#14b8a6', '#ec4899',
+    '#6366f1', '#eab308', '#94a3b8'
+];
+
 function _buildEmptyCards() {
     return `
         <div class="analytics-metric-card">
-            <div class="amc-label">Total Spending</div>
+            <div class="amc-top">
+                <span class="amc-icon amc-icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                    </svg>
+                </span>
+                <span class="amc-label">Total Spending</span>
+            </div>
             <div class="amc-value">₹0.00</div>
-            <div class="amc-sub">No transactions yet</div>
+            <div class="amc-sub">No transactions recorded yet</div>
         </div>
         <div class="analytics-metric-card">
-            <div class="amc-label">Average Transaction</div>
+            <div class="amc-top">
+                <span class="amc-icon amc-icon--blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                    </svg>
+                </span>
+                <span class="amc-label">Average Transaction</span>
+            </div>
             <div class="amc-value">₹0.00</div>
-            <div class="amc-sub">Per entry</div>
+            <div class="amc-sub">Per recorded entry</div>
         </div>
         <div class="analytics-metric-card">
-            <div class="amc-label">Top Category</div>
+            <div class="amc-top">
+                <span class="amc-icon amc-icon--purple">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </span>
+                <span class="amc-label">Top Category</span>
+            </div>
             <div class="amc-value amc-value--sm">--</div>
             <div class="amc-sub">Highest spending area</div>
         </div>
         <div class="analytics-metric-card">
-            <div class="amc-label">Recurring Spend</div>
+            <div class="amc-top">
+                <span class="amc-icon amc-icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"/>
+                        <polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                    </svg>
+                </span>
+                <span class="amc-label">Recurring Spend</span>
+            </div>
             <div class="amc-value">₹0.00</div>
             <div class="amc-sub">0 recurring entries</div>
         </div>
@@ -151,25 +180,23 @@ function _buildSummaryCards({ total, count, avgAmount, topCat, recurringSpend, r
 
     return `
         <div class="analytics-metric-card">
-            <div class="amc-icon-row">
-                <span class="amc-icon amc-icon--indigo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
+            <div class="amc-top">
+                <span class="amc-icon amc-icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="1" x2="12" y2="23"/>
                         <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
                     </svg>
                 </span>
                 <span class="amc-label">Total Spending</span>
             </div>
-            <div class="amc-value amc-value--indigo">${formatCurrency(total)}</div>
+            <div class="amc-value amc-value--green">${formatCurrency(total)}</div>
             <div class="amc-sub">${count} transaction${count !== 1 ? 's' : ''} recorded</div>
         </div>
 
         <div class="analytics-metric-card">
-            <div class="amc-icon-row">
+            <div class="amc-top">
                 <span class="amc-icon amc-icon--blue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                     </svg>
                 </span>
@@ -180,10 +207,9 @@ function _buildSummaryCards({ total, count, avgAmount, topCat, recurringSpend, r
         </div>
 
         <div class="analytics-metric-card">
-            <div class="amc-icon-row">
+            <div class="amc-top">
                 <span class="amc-icon amc-icon--purple">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                     </svg>
                 </span>
@@ -194,10 +220,9 @@ function _buildSummaryCards({ total, count, avgAmount, topCat, recurringSpend, r
         </div>
 
         <div class="analytics-metric-card">
-            <div class="amc-icon-row">
+            <div class="amc-top">
                 <span class="amc-icon amc-icon--green">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                         stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="23 4 23 10 17 10"/>
                         <polyline points="1 20 1 14 7 14"/>
                         <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
@@ -215,18 +240,26 @@ function _buildRecurringBarEmpty() {
     return `
         <div class="recurring-bar-wrap">
             <div class="recurring-bar-header">
-                <span class="recurring-bar-title">Recurring vs One-off Spending</span>
-                <span class="recurring-bar-hint">Add transactions to see breakdown</span>
+                <div>
+                    <h3 class="chart-card-title">Recurring vs One-off Spending</h3>
+                    <span class="chart-card-desc">Proportion of regular scheduled commitments</span>
+                </div>
+                <span class="recurring-bar-hint">0 transactions</span>
             </div>
             <div class="recurring-bar-track">
                 <div class="recurring-bar-fill recurring-bar-fill--recurring" style="width:0%"></div>
             </div>
             <div class="recurring-bar-legend">
-                <span class="rbl-dot rbl-dot--recurring"></span>
-                <span class="rbl-label">Recurring — ₹0.00 (0%)</span>
-                <span class="rbl-spacer"></span>
-                <span class="rbl-dot rbl-dot--oneoff"></span>
-                <span class="rbl-label">One-off — ₹0.00 (0%)</span>
+                <div class="rbl-item">
+                    <span class="rbl-dot rbl-dot--recurring"></span>
+                    <span class="rbl-label">Recurring</span>
+                    <span class="rbl-val">₹0.00 (0%)</span>
+                </div>
+                <div class="rbl-item">
+                    <span class="rbl-dot rbl-dot--oneoff"></span>
+                    <span class="rbl-label">One-off</span>
+                    <span class="rbl-val">₹0.00 (0%)</span>
+                </div>
             </div>
         </div>
     `;
@@ -240,7 +273,10 @@ function _buildRecurringBar({ recurringSpend, oneOffSpend, recurringPct, recurri
     return `
         <div class="recurring-bar-wrap">
             <div class="recurring-bar-header">
-                <span class="recurring-bar-title">Recurring vs One-off Spending</span>
+                <div>
+                    <h3 class="chart-card-title">Recurring vs One-off Spending</h3>
+                    <span class="chart-card-desc">Proportion of regular scheduled commitments</span>
+                </div>
                 <span class="recurring-bar-hint">${recurringCount} recurring · ${oneOffCount} one-off</span>
             </div>
             <div class="recurring-bar-track" title="Recurring: ${recPctStr}% | One-off: ${oofPctStr}%">
@@ -254,11 +290,16 @@ function _buildRecurringBar({ recurringSpend, oneOffSpend, recurringPct, recurri
                 </div>
             </div>
             <div class="recurring-bar-legend">
-                <span class="rbl-dot rbl-dot--recurring"></span>
-                <span class="rbl-label">Recurring — ${formatCurrency(recurringSpend)} (${recPctStr}%)</span>
-                <span class="rbl-spacer"></span>
-                <span class="rbl-dot rbl-dot--oneoff"></span>
-                <span class="rbl-label">One-off — ${formatCurrency(oneOffSpend)} (${oofPctStr}%)</span>
+                <div class="rbl-item">
+                    <span class="rbl-dot rbl-dot--recurring"></span>
+                    <span class="rbl-label">Recurring</span>
+                    <span class="rbl-val">${formatCurrency(recurringSpend)} (${recPctStr}%)</span>
+                </div>
+                <div class="rbl-item">
+                    <span class="rbl-dot rbl-dot--oneoff"></span>
+                    <span class="rbl-label">One-off</span>
+                    <span class="rbl-val">${formatCurrency(oneOffSpend)} (${oofPctStr}%)</span>
+                </div>
             </div>
         </div>
     `;
@@ -267,8 +308,15 @@ function _buildRecurringBar({ recurringSpend, oneOffSpend, recurringPct, recurri
 function _buildTableEmpty() {
     return `
         <div class="analytics-table-empty">
-            <span class="analytics-table-empty-icon">📊</span>
-            <p>No category data yet. Add transactions to see the breakdown.</p>
+            <div class="analytics-table-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+            </div>
+            <p style="font-weight:600; color:var(--text-primary); margin-bottom:0.25rem;">No category data yet</p>
+            <p style="font-size:0.75rem; color:var(--text-muted);">Add transactions to see category distribution and budget shares.</p>
         </div>
     `;
 }
@@ -287,12 +335,18 @@ function _buildCategoryTable(catTotals, grandTotal) {
         const pct = grandTotal > 0 ? ((total / grandTotal) * 100).toFixed(1) : '0.0';
         const barWidth = grandTotal > 0 ? Math.round((total / grandTotal) * 100) : 0;
         const color = PALETTE[idx % PALETTE.length];
+        const isTop = idx === 0;
+        const rowClass = isTop ? 'act-row act-row--top' : 'act-row';
+
         return `
-            <tr class="act-row">
-                <td class="act-rank">${idx + 1}</td>
+            <tr class="${rowClass}">
+                <td class="act-rank">
+                    <span class="act-rank-badge ${isTop ? 'act-rank-badge--top' : ''}">${idx + 1}</span>
+                </td>
                 <td class="act-name">
                     <span class="act-dot" style="background:${color}"></span>
-                    ${_esc(cat)}
+                    <span>${_esc(cat)}</span>
+                    ${isTop ? '<span class="act-top-pill">Top</span>' : ''}
                 </td>
                 <td class="act-amount">${formatCurrency(total)}</td>
                 <td class="act-pct-cell">
@@ -323,13 +377,6 @@ function _buildCategoryTable(catTotals, grandTotal) {
         </div>
     `;
 }
-
-// Same palette as charts.js for visual consistency
-const PALETTE = [
-    '#6366f1','#10b981','#f59e0b','#06b6d4',
-    '#f43f5e','#8b5cf6','#3b82f6','#ec4899',
-    '#14b8a6','#84cc16','#eab308','#64748b',
-];
 
 function _esc(str) {
     return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');

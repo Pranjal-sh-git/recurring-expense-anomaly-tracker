@@ -13,19 +13,38 @@
  *   setTransactions(txArray)            – void  (replace in-memory state; does NOT persist)
  *   clearStore()                        – void  (clears memory + LocalStorage)
  *   loadDemoData(txArray, append?)      – Array of loaded transactions (skips invalid rows)
+ *   reloadForUser()                     – void  (re-hydrates from the current user's storage key)
  */
 
 import { loadTransactions, saveTransactions, clearTransactions } from '../services/dataService.js';
 import { validateTransaction, normalizeTransaction }             from '../utils/validators.js';
+import { getCurrentUser }                                        from '../services/authService.js';
 
 // ─── In-memory state ──────────────────────────────────────────────────────────
 
-let transactions = [];
+let _activeUserId = getCurrentUser()?.id ?? null;
+let transactions = loadTransactions(_activeUserId);
 
-// Hydrate from LocalStorage on module init (safe — loadTransactions never throws)
-transactions = loadTransactions();
+// ─── Private helpers ──────────────────────────────────────────────────────────
 
-// ─── Private helper ───────────────────────────────────────────────────────────
+/**
+ * Get the active user's ID for scoping localStorage operations.
+ * @returns {string|null}
+ */
+function _userId() {
+    return getCurrentUser()?.id ?? null;
+}
+
+/**
+ * Ensures in-memory transactions match the currently authenticated user.
+ */
+function _ensureUserSync() {
+    const currentId = _userId();
+    if (_activeUserId !== currentId) {
+        _activeUserId = currentId;
+        transactions = loadTransactions(currentId);
+    }
+}
 
 /**
  * Generate a unique transaction ID.
@@ -46,7 +65,17 @@ function generateId() {
  * @returns {Array<Object>}
  */
 export function getTransactions() {
+    _ensureUserSync();
     return transactions.map(t => ({ ...t }));
+}
+
+/**
+ * Re-hydrate the in-memory store from the current user's LocalStorage key.
+ * Call this immediately after login or account switch to load the correct data.
+ */
+export function reloadForUser() {
+    _activeUserId = _userId();
+    transactions = loadTransactions(_activeUserId);
 }
 
 /**
@@ -57,6 +86,7 @@ export function getTransactions() {
  * @throws {Error} If validation fails.
  */
 export function addTransaction(transaction) {
+    _ensureUserSync();
     const { isValid, errors } = validateTransaction(transaction);
     if (!isValid) {
         const msg = Object.entries(errors)
@@ -73,7 +103,7 @@ export function addTransaction(transaction) {
     });
 
     transactions.push(normalized);
-    saveTransactions(transactions);
+    saveTransactions(transactions, _userId());
     return { ...normalized };
 }
 
@@ -83,32 +113,35 @@ export function addTransaction(transaction) {
  * @returns {boolean} True if found and deleted, false if not found.
  */
 export function deleteTransaction(id) {
+    _ensureUserSync();
     if (!id) return false;
     const index = transactions.findIndex(t => t.id === id);
     if (index === -1) return false;
 
     transactions.splice(index, 1);
-    saveTransactions(transactions);
+    saveTransactions(transactions, _userId());
     return true;
 }
 
 /**
  * Replace the in-memory transaction list without persisting.
- * Used by the init flow: load from LocalStorage → setTransactions → getTransactions.
+ * Used by the init flow: load from LocalStorage => setTransactions => getTransactions.
  *
  * @param {Array<Object>} txArray - The replacement array.
  */
 export function setTransactions(txArray) {
+    _activeUserId = _userId();
     transactions = Array.isArray(txArray) ? txArray.map(t => ({ ...t })) : [];
 }
 
 /**
- * Clear all transactions from memory and LocalStorage.
+ * Clear all transactions from memory and LocalStorage for the current user.
  */
 export function clearStore() {
+    _activeUserId = _userId();
     transactions = [];
-    clearTransactions();   // delegates to dataService
-    saveTransactions([]);  // belt-and-suspenders: ensure key is set to []
+    clearTransactions(_activeUserId);    // delegates to dataService
+    saveTransactions([], _activeUserId); // belt-and-suspenders: ensure key is set to []
 }
 
 /**
@@ -131,7 +164,7 @@ export function loadDemoData(demoTransactions, append = false) {
         const { isValid, errors } = validateTransaction(tx);
         if (!isValid) {
             const reason = Object.entries(errors).map(([f, e]) => `${f}: ${e}`).join(', ');
-            console.warn(`loadDemoData: skipping "${tx?.title ?? 'Untitled'}" — ${reason}`);
+            console.warn(`loadDemoData: skipping "${tx?.title ?? 'Untitled'}" -- ${reason}`);
             continue;
         }
 
@@ -141,7 +174,7 @@ export function loadDemoData(demoTransactions, append = false) {
                 id: tx.id || generateId(),
             }));
         } catch (err) {
-            console.warn(`loadDemoData: skipping row — ${err.message}`);
+            console.warn(`loadDemoData: skipping row -- ${err.message}`);
         }
     }
 
@@ -151,7 +184,7 @@ export function loadDemoData(demoTransactions, append = false) {
         transactions = accepted;
     }
 
-    saveTransactions(transactions);
+    saveTransactions(transactions, _userId());
     return accepted.map(t => ({ ...t }));
 }
 
@@ -164,4 +197,5 @@ export default {
     setTransactions,
     clearStore,
     loadDemoData,
+    reloadForUser,
 };

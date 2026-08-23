@@ -13,7 +13,7 @@
  * All of that is delegated to the appropriate service modules.
  */
 
-import { getTransactions, addTransaction, deleteTransaction }  from './state/transactionStore.js';
+import { getTransactions, addTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
 import { detectAnomalies, countAnomalies }                     from './services/anomalyService.js';
 import { generateDashboardSummary }                            from './analytics/analyticsService.js';
 import { updateAllCharts }                                     from './analytics/charts.js';
@@ -27,25 +27,32 @@ import { initNavigation }                                      from './ui/naviga
 import { initAnalyticsView, updateAnalyticsView }             from './ui/analyticsView.js';
 import { initAnomalyView,   updateAnomalyView   }             from './ui/anomalyView.js';
 import { initFilters, applyFilters }                           from './ui/transactionFilters.js';
+import { initDateRangePicker, filterTransactionsByDate }      from './ui/dateRangePicker.js';
+import { initLandingPage }                                     from './landing.js';
+import { initAuthModal }                                       from './ui/authModal.js';
+import { updateNavbarUserDisplay }                             from './services/authService.js';
+import { showDashboard }                                       from './ui/navigation.js';
 
 // ─── Core refresh cycle ───────────────────────────────────────────────────────
 
 /**
- * Re-render the transaction table with current filter settings.
+ * Re-render the transaction table with current filter settings and active date range.
  */
 function renderFilteredTable() {
-    const transactions = getTransactions();
+    const raw          = getTransactions();
+    const transactions = filterTransactionsByDate(raw);
     const analyzed     = detectAnomalies(transactions);
     const filtered     = applyFilters(analyzed);
     renderTransactions(filtered);
 }
 
 /**
- * Refresh the full UI with the latest store state.
- * Called after every add / delete and once on initial load.
+ * Refresh the full UI with the latest store state and active date range.
+ * Called after every add / delete, date range change, and once on initial load.
  */
 function refreshApp() {
-    const transactions = getTransactions();                        // raw from store
+    const raw          = getTransactions();                        // raw from store
+    const transactions = filterTransactionsByDate(raw);           // filtered by navbar date range
     const analyzed     = detectAnomalies(transactions);           // adds isAnomaly + zScore
     const summary      = generateDashboardSummary(transactions);  // totals / category
     const anomalyCount = countAnomalies(analyzed);                // integer count
@@ -158,6 +165,7 @@ function init() {
     initForm();
     initFilters(renderFilteredTable);
     initTransactionTable(handleDelete);  // pass delete callback for event delegation
+    initDateRangePicker(refreshApp);     // date range picker in top navbar
 
     // 3. Attach submit handler after initForm() has injected the form element
     const form = document.getElementById('expense-form');
@@ -167,6 +175,18 @@ function init() {
 
     // 4. Populate UI from persisted store data (handles empty LocalStorage gracefully)
     refreshApp();
+
+    // 5. Initialize Landing Page scroll reveals, navbar blur, and triggers
+    initLandingPage();
+
+    // 6. Initialize Authentication Modal and dynamic user display
+    initAuthModal(() => {
+        updateNavbarUserDisplay();
+        reloadForUser();   // re-hydrate store from the newly logged-in user's isolated data bucket
+        refreshApp();
+        showDashboard('overview');
+    });
+    updateNavbarUserDisplay();
 }
 
 document.addEventListener('DOMContentLoaded', init);
