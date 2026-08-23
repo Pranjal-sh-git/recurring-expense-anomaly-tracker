@@ -10,15 +10,20 @@
  *   - Seed a demo account on first run so existing users can test immediately.
  */
 
-const STORAGE_KEY_USERS = 'expenseTrackUsers';
-const STORAGE_KEY_CURRENT_USER = 'expenseTrackCurrentUser';
-const STORAGE_KEY_AUTH = 'expenseTrackAuth';
+const STORAGE_KEY_USERS = 'kharchaSenseUsers';
+const STORAGE_KEY_CURRENT_USER = 'kharchaSenseCurrentUser';
+const STORAGE_KEY_AUTH = 'kharchaSenseAuth';
+
+// Legacy keys for migration support
+const LEGACY_STORAGE_KEY_USERS = 'expenseTrackUsers';
+const LEGACY_STORAGE_KEY_CURRENT_USER = 'expenseTrackCurrentUser';
+const LEGACY_STORAGE_KEY_AUTH = 'expenseTrackAuth';
 
 // Default demo account to ensure instant access if no users exist
 const DEFAULT_DEMO_USER = {
     id: 'user_demo_001',
     name: 'Alex',
-    email: 'test@expensetrack.app',
+    email: 'test@kharchasense.app',
     password: 'password123'
 };
 
@@ -28,6 +33,17 @@ const DEFAULT_DEMO_USER = {
  */
 export function getUsers() {
     try {
+        // Migrate legacy localStorage keys if present
+        if (!localStorage.getItem(STORAGE_KEY_USERS) && localStorage.getItem(LEGACY_STORAGE_KEY_USERS)) {
+            localStorage.setItem(STORAGE_KEY_USERS, localStorage.getItem(LEGACY_STORAGE_KEY_USERS));
+        }
+        if (!localStorage.getItem(STORAGE_KEY_CURRENT_USER) && localStorage.getItem(LEGACY_STORAGE_KEY_CURRENT_USER)) {
+            localStorage.setItem(STORAGE_KEY_CURRENT_USER, localStorage.getItem(LEGACY_STORAGE_KEY_CURRENT_USER));
+        }
+        if (!localStorage.getItem(STORAGE_KEY_AUTH) && localStorage.getItem(LEGACY_STORAGE_KEY_AUTH)) {
+            localStorage.setItem(STORAGE_KEY_AUTH, localStorage.getItem(LEGACY_STORAGE_KEY_AUTH));
+        }
+
         const data = localStorage.getItem(STORAGE_KEY_USERS);
         if (!data) {
             // Seed initial demo user
@@ -36,12 +52,12 @@ export function getUsers() {
             return initial;
         }
         const users = JSON.parse(data) || [];
-        // Ensure test@expensetrack.app demo user is present
-        const hasDemo = users.some(u => u.email.toLowerCase() === 'test@expensetrack.app');
+        // Ensure test@kharchasense.app demo user is present
+        const hasDemo = users.some(u => u.email.toLowerCase() === 'test@kharchasense.app');
         if (!hasDemo) {
-            const legacyDemo = users.find(u => u.id === 'user_demo_001' || u.email.toLowerCase() === 'pranjal@expensetrack.app');
+            const legacyDemo = users.find(u => u.id === 'user_demo_001' || u.email.toLowerCase() === 'test@expensetrack.app' || u.email.toLowerCase() === 'pranjal@expensetrack.app');
             if (legacyDemo) {
-                legacyDemo.email = 'test@expensetrack.app';
+                legacyDemo.email = 'test@kharchasense.app';
                 legacyDemo.name = 'Alex';
             } else {
                 users.unshift(DEFAULT_DEMO_USER);
@@ -202,7 +218,7 @@ export function updateNavbarUserDisplay() {
     const dropdownEmailEl = document.getElementById('dropdown-user-email');
 
     const displayName = user && user.name ? user.name : 'Alex';
-    const displayEmail = user && user.email ? user.email : 'test@expensetrack.app';
+    const displayEmail = user && user.email ? user.email : 'test@kharchasense.app';
 
     if (nameEl) {
         nameEl.textContent = displayName;

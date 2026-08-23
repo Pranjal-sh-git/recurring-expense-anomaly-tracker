@@ -79,7 +79,7 @@ function _processCSV(csvText, onImportSuccess) {
 
         const count = result.transactions.length;
         const skippedCount = result.skipped.length;
-        let successMsg = `✓ Successfully imported ${count} transaction${count > 1 ? 's' : ''}!`;
+        let successMsg = `Successfully imported ${count} transaction${count > 1 ? 's' : ''}!`;
         if (skippedCount > 0) {
             successMsg += ` (${skippedCount} invalid row${skippedCount > 1 ? 's' : ''} skipped)`;
         }

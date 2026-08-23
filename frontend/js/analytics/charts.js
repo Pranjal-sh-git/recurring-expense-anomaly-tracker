@@ -340,8 +340,8 @@ function renderDailyTrendFallback(container, chartData) {
   const gradientId = `trendGrad_${Math.random().toString(36).substring(2, 7)}`;
 
   container.innerHTML = `
-    <div class="chart-daily-svg-wrap" style="width:100%; overflow-x:auto; padding:0.5rem 0;">
-      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; height:200px; min-width:${svgWidth}px; display:block;">
+    <div class="chart-daily-svg-wrap" style="width:100%; max-width:100%; overflow-x:auto; padding:0.5rem 0; box-sizing:border-box;">
+      <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; height:200px; max-width:100%; display:block;">
         <defs>
           <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#5BC236" stop-opacity="0.22"/>
