@@ -3276,6 +3276,72 @@ select.form-control {
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
+.card-header--with-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.card-header-info {
+    min-width: 0;
+}
+
+.card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-card-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 650;
+    cursor: pointer;
+    transition: all var(--transition);
+    border: 1px solid transparent;
+}
+
+.btn-card-action--primary {
+    background: #eef9ec;
+    color: #2b7a15;
+    border-color: rgba(91, 194, 54, 0.3);
+}
+
+.btn-card-action--primary:hover {
+    background: #5BC236;
+    color: #ffffff;
+    border-color: #5BC236;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(91, 194, 54, 0.25);
+}
+
+.btn-card-action--primary svg {
+    transition: transform var(--transition);
+}
+
+.btn-card-action--primary:hover svg {
+    transform: translateY(-1px);
+}
+
+.btn-card-action--ghost {
+    background: #f8fafc;
+    color: var(--text-secondary);
+    border-color: #e2e8f0;
+}
+
+.btn-card-action--ghost:hover {
+    background: #edf2f7;
+    color: var(--text-primary);
+    border-color: #cbd5e1;
+}
+
 .card-title {
     font-size: 1rem;
     font-weight: 800;
@@ -3287,6 +3353,57 @@ select.form-control {
 .card-desc {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+/* CSV Toast Notification */
+.csv-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: var(--radius-md);
+    background: #1e293b;
+    color: #ffffff;
+    font-size: 0.84rem;
+    font-weight: 600;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.96);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+}
+
+.csv-toast--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.csv-toast--success {
+    background: #0f441c;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: #ecfdf5;
+}
+
+.csv-toast--error {
+    background: #4c0519;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    color: #fff1f2;
+}
+
+.csv-toast--info {
+    background: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.csv-toast-icon {
+    font-size: 1rem;
 }
 
 

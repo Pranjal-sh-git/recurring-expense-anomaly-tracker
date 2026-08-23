@@ -32,6 +32,7 @@ import { initLandingPage }                                     from './landing.j
 import { initAuthModal }                                       from './ui/authModal.js';
 import { updateNavbarUserDisplay }                             from './services/authService.js';
 import { showDashboard }                                       from './ui/navigation.js';
+import { initCSVImport }                                       from './ui/csvImport.js';
 
 // ─── Core refresh cycle ───────────────────────────────────────────────────────
 
@@ -166,6 +167,7 @@ function init() {
     initFilters(renderFilteredTable);
     initTransactionTable(handleDelete);  // pass delete callback for event delegation
     initDateRangePicker(refreshApp);     // date range picker in top navbar
+    initCSVImport(refreshApp);           // CSV bulk import and sample template handler
 
     // 3. Attach submit handler after initForm() has injected the form element
     const form = document.getElementById('expense-form');
