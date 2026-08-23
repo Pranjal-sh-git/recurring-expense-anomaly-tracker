@@ -324,11 +324,23 @@
     text-decoration: none;
 }
 
+.btn-hero-secondary svg {
+    flex-shrink: 0;
+    color: var(--lp-text-secondary);
+    transition: color 0.3s ease, transform 0.3s ease, filter 0.3s ease;
+}
+
 .btn-hero-secondary:hover {
-    border-color: rgba(0, 0, 0, 0.18);
+    border-color: rgba(91, 194, 54, 0.35);
     background: #ffffff;
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.07);
+    box-shadow: 0 6px 18px rgba(91, 194, 54, 0.12);
+}
+
+.btn-hero-secondary:hover svg {
+    color: #4aad1f;
+    transform: scale(1.18);
+    filter: drop-shadow(0 0 5px rgba(91, 194, 54, 0.5));
 }
 
 .btn-play-icon {

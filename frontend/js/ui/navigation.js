@@ -19,7 +19,7 @@
  */
 
 import { isAuthenticated, logout, updateNavbarUserDisplay } from '../services/authService.js';
-import { openAuthModal } from './authModal.js';
+import { openAuthModal, resetAuthForms } from './authModal.js';
 import { reloadForUser } from '../state/transactionStore.js';
 
 // ─── Section metadata ────────────────────────────────────────────────────────
@@ -356,6 +356,7 @@ function _bindNavbarActions() {
             if (profileBtn) profileBtn.classList.remove('active');
             logout();
             reloadForUser();
+            resetAuthForms();
             showLandingPage();
         });
     }
@@ -376,6 +377,7 @@ function _bindDashboardReturnActions() {
         logoutBtn.addEventListener('click', () => {
             logout();
             reloadForUser();
+            resetAuthForms();
             showLandingPage();
         });
     }

@@ -232,7 +232,10 @@
                                 </svg>
                             </button>
                             <a href="#how-it-works-section" class="btn-hero-secondary" id="btn-hero-how-it-works">
-                                <span class="btn-play-icon">▶</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
                                 <span>See How It Works</span>
                             </a>
                         </div>
@@ -770,19 +773,38 @@
                 </ul>
             </nav>
 
-            <!-- Total Records sidebar Card near the bottom -->
-            <div class="sidebar-records-card">
-                <div class="src-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <ellipse cx="12" cy="5" rx="9" ry="3"/>
-                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-                        <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
-                    </svg>
+            <!-- Sidebar Stats Container (2 Separate Cards) -->
+            <div class="sidebar-stats-container">
+                <!-- Card 1: Total Records -->
+                <div class="sidebar-records-card">
+                    <div class="src-icon src-icon--records">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+                        </svg>
+                    </div>
+                    <div class="src-text">
+                        <span class="src-label">Total Records</span>
+                        <span class="src-value" id="sidebar-record-count">0</span>
+                        <span class="src-status"><span class="status-pulse-dot"></span> Synced just now</span>
+                    </div>
                 </div>
-                <div class="src-text">
-                    <span class="src-label">Total Records</span>
-                    <span class="src-value" id="sidebar-record-count">0</span>
-                    <span class="src-status"><span class="status-pulse-dot"></span> Synced just now</span>
+
+                <!-- Card 2: Anomalies Detected -->
+                <div class="sidebar-records-card sidebar-records-card--anomaly">
+                    <div class="src-icon src-icon--anomalies">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="src-text">
+                        <span class="src-label">Anomalies Detected</span>
+                        <span class="src-value src-value--danger" id="sidebar-anomaly-count">0</span>
+                        <span class="src-status src-status--danger"><span class="status-pulse-dot status-pulse-dot--danger"></span> Active alerts</span>
+                    </div>
                 </div>
             </div>
 
@@ -797,9 +819,6 @@
                     <span>Logout</span>
                 </button>
             </div>
-            
-            <!-- Hidden counts for JS updating without breaking scripts -->
-            <span id="sidebar-anomaly-count" style="display:none">0</span>
 
         </aside>
         <!-- /aside.sidebar -->

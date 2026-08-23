@@ -29,6 +29,40 @@ export function initAuthModal(onAuthSuccess) {
 }
 
 /**
+ * Completely reset all auth form inputs, password masks, and error messages.
+ */
+export function resetAuthForms() {
+    const loginForm = document.getElementById('auth-login-form');
+    const signupForm = document.getElementById('auth-signup-form');
+    
+    if (loginForm) loginForm.reset();
+    if (signupForm) signupForm.reset();
+
+    // Explicitly blank out all inputs to prevent browser memory holding old credentials
+    const inputs = document.querySelectorAll('.auth-modal-container input:not([type="checkbox"])');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+
+    // Reset password visibility toggles back to masked (type="password")
+    const passwordToggles = document.querySelectorAll('.auth-password-toggle');
+    passwordToggles.forEach(btn => {
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input) input.type = 'password';
+        btn.innerHTML = `
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        `;
+        btn.title = 'Show password';
+    });
+
+    _clearErrors();
+}
+
+/**
  * Open the Auth Modal.
  * @param {object} [options]
  * @param {'login'|'signup'} [options.tab='login']
@@ -42,11 +76,11 @@ export function openAuthModal(options = {}) {
         _onAuthSuccessCallback = options.onSuccess;
     }
 
+    // Always clear inputs and errors when opening
+    resetAuthForms();
+
     // Switch to requested tab
     switchAuthTab(options.tab || 'login');
-
-    // Clear any previous error states and reset inputs
-    _clearErrors();
 
     // Show modal with backdrop blur & spring entrance
     backdrop.classList.add('auth-modal--visible');
@@ -68,7 +102,7 @@ export function closeAuthModal() {
 
     backdrop.classList.remove('auth-modal--visible');
     document.body.style.overflow = '';
-    _clearErrors();
+    resetAuthForms();
 }
 
 /**
