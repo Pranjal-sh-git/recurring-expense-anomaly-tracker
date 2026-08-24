@@ -4,7 +4,7 @@
 
 ---
 
-# live website - https://recurringexpenseanomalytracker.netlify.app/#landing
+## live website - https://recurringexpenseanomalytracker.netlify.app/#landing
 
 ## 📋 Table of Contents
 
