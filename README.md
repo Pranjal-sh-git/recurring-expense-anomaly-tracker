@@ -48,7 +48,6 @@
 | **Charts** | Native HTML5 `<canvas>` API (custom line, bar, and donut charts — zero charting libraries) |
 | **Persistence** | Browser `localStorage` (per-user namespaced keys: `expense_tracker_transactions_${userId}`) |
 | **Fonts** | Google Fonts — Inter |
-| **Dev Server** | Vite / Static Server (for fast local development and ES module resolution) |
 | **No Backend** | 100% client-side execution — zero server dependencies |
 | **No Frameworks** | Pure Vanilla JS — no React, Vue, Angular, or jQuery |
 | **No Libraries** | Hand-crafted animations, chart visualizers, and state synchronization |
@@ -256,7 +255,6 @@ recurring-expense-anomaly-tracker/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (installed on your machine)
 - Any modern web browser (Chrome, Edge, Firefox, Safari)
 
 ### Run Locally
@@ -266,8 +264,6 @@ recurring-expense-anomaly-tracker/
 git clone https://github.com/Dhawalsingh2006/Recurring-Expense-Anomaly-Tracker.git
 cd recurring-expense-anomaly-tracker
 
-# Start the dev server
-npm run dev
 ```
 
 Then open `http://localhost:5500` (or the URL shown in your terminal) in your browser.
