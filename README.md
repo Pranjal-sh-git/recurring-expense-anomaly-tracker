@@ -265,7 +265,7 @@ recurring-expense-anomaly-tracker/
 
 ```bash
 # Clone the repository
-git clone https://github.com/Dhawalsingh2006/Recurring-Expense-Anomaly-Tracker.git
+git clone https://github.com/Pranjal-sh-git/recurring-expense-anomaly-tracker.git
 cd recurring-expense-anomaly-tracker
 
 ```
