@@ -47,7 +47,7 @@ function buildTableShell() {
                         <th>Amount</th>
                         <th>Type</th>
                         <th>Status</th>
-                        <th></th>
+                        <th class="tx-actions-header">Action</th>
                     </tr>
                 </thead>
                 <tbody id="transaction-table-body">

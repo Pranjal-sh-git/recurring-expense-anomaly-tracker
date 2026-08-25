@@ -64,7 +64,7 @@ function refreshApp() {
         totalTransactions: summary.totalTransactions,
         anomaliesDetected: anomalyCount,
         highestCategory:   summary.highestSpendingCategory ?? '--',
-    });
+    }, transactions);
 
     // ── Recurring count card + sidebar anomaly mirror ──
     updateRecurringCount(transactions);
