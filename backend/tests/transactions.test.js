@@ -296,22 +296,24 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
     assert.strictEqual(verifyFetch.status, 404);
   });
 
-  // ─── 7. Invalid Mongo IDs ────────────────────────────────────────────────────
+  // ─── 7. ObjectId Validation & Handling ───────────────────────────────────────
 
   test('Returns 400 for invalid Mongo IDs on GET, PUT, and DELETE', async () => {
-    const invalidId = 'not-a-valid-mongo-id';
+    const invalidIds = ['not-a-valid-mongo-id', '123', 'short-id', '507f1f77bcf86cd799439011ZZ'];
 
-    const getRes = await apiRequest('GET', `/api/transactions/${invalidId}`, null, tokenUserA);
-    assert.strictEqual(getRes.status, 400);
-    assert.strictEqual(getRes.data.message, 'Invalid transaction ID format');
+    for (const invalidId of invalidIds) {
+      const getRes = await apiRequest('GET', `/api/transactions/${invalidId}`, null, tokenUserA);
+      assert.strictEqual(getRes.status, 400);
+      assert.strictEqual(getRes.data.message, 'Invalid transaction ID format');
 
-    const putRes = await apiRequest('PUT', `/api/transactions/${invalidId}`, { title: 'Update' }, tokenUserA);
-    assert.strictEqual(putRes.status, 400);
-    assert.strictEqual(putRes.data.message, 'Invalid transaction ID format');
+      const putRes = await apiRequest('PUT', `/api/transactions/${invalidId}`, { title: 'Update' }, tokenUserA);
+      assert.strictEqual(putRes.status, 400);
+      assert.strictEqual(putRes.data.message, 'Invalid transaction ID format');
 
-    const delRes = await apiRequest('DELETE', `/api/transactions/${invalidId}`, null, tokenUserA);
-    assert.strictEqual(delRes.status, 400);
-    assert.strictEqual(delRes.data.message, 'Invalid transaction ID format');
+      const delRes = await apiRequest('DELETE', `/api/transactions/${invalidId}`, null, tokenUserA);
+      assert.strictEqual(delRes.status, 400);
+      assert.strictEqual(delRes.data.message, 'Invalid transaction ID format');
+    }
   });
 
   // ─── 8. Cross-User Ownership Isolation ───────────────────────────────────────
@@ -335,7 +337,7 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
     assert.strictEqual(original.user.toString(), userAId);
   });
 
-  // ─── 9. Batch Import (POST /api/transactions/import) ─────────────────────────
+  // ─── 9. Batch Import (POST /api/transactions/import and /bulk) ────────────────
 
   test('Imports batch of valid transactions with 201, scoping all to req.user.id', async () => {
     const batchPayload = {
@@ -368,6 +370,24 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
     for (const tx of res.data.data.transactions) {
       assert.strictEqual(tx.userId, userAId);
     }
+  });
+
+  test('POST /api/transactions/bulk alias also imports valid batch', async () => {
+    const bulkPayload = {
+      transactions: [
+        {
+          title: 'Gas Refill',
+          amount: 35.0,
+          category: 'Utilities',
+          date: '2026-10-14',
+          recurring: false
+        }
+      ]
+    };
+
+    const res = await apiRequest('POST', '/api/transactions/bulk', bulkPayload, tokenUserA);
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.data.data.importedCount, 1);
   });
 
   test('Safely rejects invalid batches before saving, without partial insertion', async () => {
@@ -410,5 +430,65 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
 
     const nonArrayRes = await apiRequest('POST', '/api/transactions/import', { transactions: 'not an array' }, tokenUserA);
     assert.strictEqual(nonArrayRes.status, 400);
+  });
+
+  // ─── 10. Duplicate Handling in Batch Import ───────────────────────────────────
+
+  test('Deduplicates duplicate entries within an import batch safely', async () => {
+    const duplicateBatch = {
+      transactions: [
+        {
+          title: 'Streaming Subscription',
+          amount: 14.99,
+          category: 'Entertainment',
+          date: '2026-10-05',
+          recurring: true
+        },
+        {
+          title: 'Streaming Subscription', // Duplicate entry in same batch
+          amount: 14.99,
+          category: 'Entertainment',
+          date: '2026-10-05',
+          recurring: true
+        },
+        {
+          title: 'Unique Book Purchase',
+          amount: 22.0,
+          category: 'Education',
+          date: '2026-10-06',
+          recurring: false
+        }
+      ]
+    };
+
+    const res = await apiRequest('POST', '/api/transactions/import', duplicateBatch, tokenUserA);
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.data.data.importedCount, 2);
+    assert.strictEqual(res.data.data.duplicatesSkipped, 1);
+  });
+
+  test('Gracefully handles batch containing only duplicate entries', async () => {
+    const allDuplicateBatch = {
+      transactions: [
+        {
+          title: 'Duplicate Only Item',
+          amount: 10.0,
+          category: 'Other',
+          date: '2026-10-01'
+        },
+        {
+          title: 'Duplicate Only Item',
+          amount: 10.0,
+          category: 'Other',
+          date: '2026-10-01'
+        }
+      ]
+    };
+
+    // First import: inserts 1, skips 1
+    const res1 = await apiRequest('POST', '/api/transactions/import', allDuplicateBatch, tokenUserA);
+    assert.strictEqual(res1.status, 201);
+    assert.strictEqual(res1.data.data.importedCount, 1);
+    assert.strictEqual(res1.data.data.duplicatesSkipped, 1);
   });
 });
