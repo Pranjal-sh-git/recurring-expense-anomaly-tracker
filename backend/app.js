@@ -75,6 +75,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ─── Core API Route Modules ───────────────────────────────────────────────────
+const authRoutes = require('./routes/authRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const anomalyRoutes = require('./routes/anomalyRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/anomalies', anomalyRoutes);
+
 // ─── 404 Route Handler ─────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   res.status(404).json({
