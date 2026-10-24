@@ -6,12 +6,14 @@ const jwt = require('jsonwebtoken');
 
 const connectDB = require('../config/db');
 const Transaction = require('../models/Transaction');
+const User = require('../models/User');
 const transactionRoutes = require('../routes/transactionRoutes');
 
 describe('Transaction API Integration & CRUD Test Suite', () => {
   let server;
   let baseUrl;
-  const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'secret';
+  const JWT_SECRET = process.env.JWT_SECRET;
 
   // Test Users
   const userAId = new mongoose.Types.ObjectId().toString();
@@ -46,8 +48,13 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
     // 1. Connect to MongoDB
     await connectDB();
 
-    // 2. Clean up any previous test artifacts
+    // 2. Clean up any previous test artifacts and seed authenticated test users
     await Transaction.deleteMany({ user: { $in: [userAId, userBId] } });
+    await User.deleteMany({ _id: { $in: [userAId, userBId] } });
+    await User.create([
+      { _id: userAId, name: 'User A', email: 'usera@example.com', password: 'password123' },
+      { _id: userBId, name: 'User B', email: 'userb@example.com', password: 'password123' }
+    ]);
 
     // 3. Create isolated Express test app
     const app = express();
@@ -73,8 +80,9 @@ describe('Transaction API Integration & CRUD Test Suite', () => {
   });
 
   after(async () => {
-    // Clean up created test transactions
+    // Clean up created test transactions and users
     await Transaction.deleteMany({ user: { $in: [userAId, userBId] } });
+    await User.deleteMany({ _id: { $in: [userAId, userBId] } });
 
     // Close server and database
     if (server) {

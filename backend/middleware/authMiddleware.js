@@ -14,12 +14,6 @@ const User = require('../models/User');
  */
 const protect = async (req, res, next) => {
   try {
-    // If request already has authenticated user context (e.g. from test harness)
-    if (req.user && (req.user.id || req.user._id)) {
-      req.user.id = (req.user.id || req.user._id).toString();
-      return next();
-    }
-
     let token;
 
     // Check for standard Authorization: Bearer <token>
@@ -99,6 +93,8 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  protect
-};
+// Support both destructured import ({ protect }) and direct import (protect)
+protect.protect = protect;
+protect.default = protect;
+
+module.exports = protect;
