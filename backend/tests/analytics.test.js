@@ -467,7 +467,7 @@ describe('Analytics Routes Bindings & Security Contract', () => {
     }
   });
 
-  it('rejects unauthenticated requests at router middleware level', () => {
+  it('rejects unauthenticated requests at router middleware level', async () => {
     let statusCalled;
     let jsonPayload;
 
@@ -489,10 +489,52 @@ describe('Analytics Routes Bindings & Security Contract', () => {
     const authLayer = analyticsRoutes.stack.find(layer => !layer.route);
     assert.notStrictEqual(authLayer, undefined);
 
-    authLayer.handle(req, res, next);
+    await authLayer.handle(req, res, next);
     assert.strictEqual(nextCalled, false);
     assert.strictEqual(statusCalled, 401);
     assert.strictEqual(jsonPayload.success, false);
+  });
+
+  it('allows valid Bearer JWT authenticated requests through router middleware layer', async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_analytics_unit_tests';
+    const jwt = require('jsonwebtoken');
+    const User = require('../models/User');
+
+    const validToken = jwt.sign({ id: TEST_USER_ID }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Mock User.findById for unit testing without live DB dependency
+    const originalFindById = User.findById;
+    User.findById = async (id) => {
+      if (id === TEST_USER_ID) {
+        return {
+          _id: id,
+          name: 'Test Analyst',
+          email: 'analyst@example.com'
+        };
+      }
+      return null;
+    };
+
+    try {
+      const req = {
+        headers: {
+          authorization: `Bearer ${validToken}`
+        }
+      };
+      const res = {};
+      let nextCalled = false;
+      const next = () => { nextCalled = true; };
+
+      const authLayer = analyticsRoutes.stack.find(layer => !layer.route);
+      assert.notStrictEqual(authLayer, undefined);
+
+      await authLayer.handle(req, res, next);
+
+      assert.strictEqual(nextCalled, true, 'Next must be called when valid token is supplied');
+      assert.strictEqual(req.user.id, TEST_USER_ID, 'Authenticated user ID must match');
+    } finally {
+      User.findById = originalFindById;
+    }
   });
 });
 
@@ -538,5 +580,404 @@ describe('Model Integration Contract & Diagnostic Handling', () => {
     assert.strictEqual(summary.totalSpending, 406.00);
     assert.strictEqual(summary.transactionCount, 8);
     assert.strictEqual(summary.highestSpendingCategory, 'Food');
+  });
+
+  it('rejects fetchTransactions if userId is missing', async () => {
+    const mockModel = {
+      find() { return { lean() { return { exec: async () => [] }; } }; }
+    };
+    await assert.rejects(
+      async () => {
+        await analyticsService.fetchTransactions({ userId: null, Model: mockModel });
+      },
+      (err) => {
+        assert.strictEqual(err.statusCode, 400);
+        assert.strictEqual(err.message.includes('User ID is required'), true);
+        return true;
+      }
+    );
+  });
+});
+
+// ─── 10. Multi-Tenant User Isolation Tests ────────────────────────────────────
+
+describe('Multi-Tenant User Isolation & Boundary Enforcement', () => {
+  const USER_A = '671ad4ef8c983a54b3d11a21';
+  const USER_B = '671ad4ef8c983a54b3d11b99';
+  const USER_C = '671ad4ef8c983a54b3d11c00';
+
+  const MULTI_TENANT_FIXTURES = [
+    {
+      user: USER_A,
+      title: 'Groceries Supermarket',
+      amount: 100.00,
+      category: 'Food',
+      date: '2026-10-01T10:00:00.000Z',
+      recurring: false
+    },
+    {
+      user: USER_A,
+      title: 'Broadband',
+      amount: 50.00,
+      category: 'Utilities',
+      date: '2026-10-02T10:00:00.000Z',
+      recurring: true
+    },
+    {
+      user: USER_A,
+      title: 'Lunch Cafe',
+      amount: 25.00,
+      category: 'Food',
+      date: '2026-10-03T10:00:00.000Z',
+      recurring: false
+    },
+    {
+      user: USER_B,
+      title: 'Concert Tickets',
+      amount: 200.00,
+      category: 'Entertainment',
+      date: '2026-10-01T14:00:00.000Z',
+      recurring: false
+    },
+    {
+      userId: USER_B,
+      title: 'Flight Reservation',
+      amount: 300.00,
+      category: 'Travel',
+      date: '2026-10-05T12:00:00.000Z',
+      recurring: false
+    }
+  ];
+
+  it('strictly isolates User A summary from User B transactions', async () => {
+    const summaryA = await analyticsService.getSummary({
+      userId: USER_A,
+      transactions: MULTI_TENANT_FIXTURES
+    });
+
+    // User A: 100 + 50 + 25 = 175.00, count 3
+    assert.strictEqual(summaryA.totalSpending, 175.00);
+    assert.strictEqual(summaryA.transactionCount, 3);
+    assert.strictEqual(summaryA.highestSpendingCategory, 'Food');
+    assert.strictEqual(summaryA.recurringSpend, 50.00);
+    assert.strictEqual(summaryA.recurringCount, 1);
+  });
+
+  it('strictly isolates User B categories from User A categories', async () => {
+    const catB = await analyticsService.getCategories({
+      userId: USER_B,
+      transactions: MULTI_TENANT_FIXTURES
+    });
+
+    // User B: 200 Entertainment + 300 Travel = 500.00, count 2
+    assert.strictEqual(catB.totalSpending, 500.00);
+    assert.strictEqual(catB.totalCount, 2);
+    assert.deepStrictEqual(Object.keys(catB.totals).sort(), ['Entertainment', 'Travel']);
+    assert.strictEqual(catB.totals['Entertainment'], 200.00);
+    assert.strictEqual(catB.totals['Travel'], 300.00);
+    // Food and Utilities must not exist in User B metrics
+    assert.strictEqual(catB.totals['Food'], undefined);
+    assert.strictEqual(catB.totals['Utilities'], undefined);
+  });
+
+  it('returns safe empty zeros for User C who has no recorded expenses', async () => {
+    const summaryC = await analyticsService.getSummary({
+      userId: USER_C,
+      transactions: MULTI_TENANT_FIXTURES
+    });
+
+    assert.strictEqual(summaryC.totalSpending, 0);
+    assert.strictEqual(summaryC.transactionCount, 0);
+    assert.strictEqual(summaryC.highestSpendingCategory, null);
+    assert.strictEqual(summaryC.averageTransactionSize, 0);
+    assert.strictEqual(Number.isNaN(summaryC.averageTransactionSize), false);
+
+    const trendsC = await analyticsService.getTrends({
+      userId: USER_C,
+      transactions: MULTI_TENANT_FIXTURES
+    });
+    assert.deepStrictEqual(trendsC.trends, []);
+    assert.deepStrictEqual(trendsC.labels, []);
+
+    const recurringC = await analyticsService.getRecurring({
+      userId: USER_C,
+      transactions: MULTI_TENANT_FIXTURES
+    });
+    assert.strictEqual(recurringC.recurringSpend, 0);
+    assert.strictEqual(recurringC.oneOffSpend, 0);
+    assert.strictEqual(recurringC.totalSpending, 0);
+  });
+
+  it('scopes MongoDB find query strictly with user property', async () => {
+    let capturedQuery;
+    const mockModel = {
+      schema: { paths: { user: true } },
+      find(q) {
+        capturedQuery = q;
+        return { lean() { return { exec: async () => [] }; } };
+      }
+    };
+
+    await analyticsService.getSummary({
+      userId: USER_A,
+      Model: mockModel
+    });
+
+    assert.deepStrictEqual(capturedQuery.user, USER_A);
+  });
+});
+
+// ─── 11. Statistical Calculations (Mean & Standard Deviation) ─────────────────
+
+describe('Statistical Metrics (Mean & Standard Deviation)', () => {
+  it('calculates mean accurately for empty, single, and multiple amounts', () => {
+    assert.strictEqual(analyticsService.calculateMean([]), 0);
+    assert.strictEqual(analyticsService.calculateMean(null), 0);
+    assert.strictEqual(analyticsService.calculateMean([50]), 50);
+    assert.strictEqual(analyticsService.calculateMean([10, 20, 30, 40]), 25);
+    // Object transactions
+    assert.strictEqual(
+      analyticsService.calculateMean([{ amount: 15 }, { amount: 35 }]),
+      25
+    );
+  });
+
+  it('calculates standard deviation accurately', () => {
+    // 0 or 1 item: stdDev = 0
+    assert.strictEqual(analyticsService.calculateStandardDeviation([]), 0);
+    assert.strictEqual(analyticsService.calculateStandardDeviation([100]), 0);
+
+    // Identical amounts: stdDev = 0
+    assert.strictEqual(analyticsService.calculateStandardDeviation([50, 50, 50, 50]), 0);
+
+    // Known values: [10, 20, 30] -> mean = 20, variance = (100 + 0 + 100) / 3 = 66.6667, stdDev = 8.16
+    assert.strictEqual(analyticsService.calculateStandardDeviation([10, 20, 30]), 8.16);
+
+    // Transactions array input
+    const txList = [{ amount: 10 }, { amount: 20 }, { amount: 30 }];
+    assert.strictEqual(analyticsService.calculateStandardDeviation(txList), 8.16);
+  });
+});
+
+// ─── 12. Frontend Dashboard & Charts Compatibility Envelopes ──────────────────
+
+describe('Frontend Dashboard & Charts JSON Compatibility', () => {
+  it('provides dashboardSummary with all expected metrics', () => {
+    const dashSummary = analyticsService.generateDashboardSummary(DETERMINISTIC_TRANSACTIONS);
+
+    assert.strictEqual(dashSummary.totalExpenses, 406.00);
+    assert.strictEqual(dashSummary.totalSpending, 406.00);
+    assert.strictEqual(dashSummary.totalTransactions, 8);
+    assert.strictEqual(dashSummary.transactionCount, 8);
+    assert.strictEqual(dashSummary.highestSpendingCategory, 'Food');
+    assert.strictEqual(dashSummary.averageTransactionSize, 50.75);
+    assert.strictEqual(dashSummary.averageAmount, 50.75);
+    assert.strictEqual(dashSummary.recurringSpend, 125.00);
+    assert.strictEqual(dashSummary.recurringCount, 3);
+    assert.strictEqual(typeof dashSummary.standardDeviation, 'number');
+  });
+
+  it('includes Chart.js compatible datasets in category metrics', () => {
+    const catData = analyticsService.calculateCategoryMetrics(DETERMINISTIC_TRANSACTIONS);
+
+    assert.strictEqual(Array.isArray(catData.datasets), true);
+    assert.strictEqual(catData.datasets.length, 1);
+    assert.strictEqual(catData.datasets[0].label, 'Spending by Category');
+    assert.strictEqual(catData.datasets[0].data.length, catData.labels.length);
+    assert.strictEqual(catData.datasets[0].data[0], catData.categories[0].total);
+    assert.strictEqual(typeof catData.averages, 'object');
+    assert.strictEqual(typeof catData.standardDeviations, 'object');
+  });
+
+  it('includes Chart.js compatible datasets in daily trends', () => {
+    const trendData = analyticsService.calculateTrends(DETERMINISTIC_TRANSACTIONS);
+
+    assert.strictEqual(Array.isArray(trendData.datasets), true);
+    assert.strictEqual(trendData.datasets.length, 1);
+    assert.strictEqual(trendData.datasets[0].label, 'Daily Spending');
+    assert.strictEqual(trendData.datasets[0].data.length, trendData.labels.length);
+    assert.strictEqual(trendData.datasets[0].data[0], trendData.trends[0].total);
+    assert.strictEqual(Array.isArray(trendData.timeline), true);
+  });
+
+  it('includes recurring spend, one-off spend, and percentage aliases', () => {
+    const recData = analyticsService.calculateRecurringTotals(DETERMINISTIC_TRANSACTIONS);
+
+    assert.strictEqual(recData.recurringSpend, 125.00);
+    assert.strictEqual(recData.recurringTotal, 125.00);
+    assert.strictEqual(recData.recurringCount, 3);
+    assert.strictEqual(recData.recurringPct, 30.79);
+    assert.strictEqual(recData.oneOffSpend, 281.00);
+    assert.strictEqual(recData.oneOffTotal, 281.00);
+    assert.strictEqual(recData.oneOffCount, 5);
+    assert.strictEqual(recData.oneOffPct, 69.21);
+    assert.strictEqual(recData.oneOff.amount, 281.00);
+  });
+});
+
+// ─── 13. Controller Request Handlers for All 4 Endpoints ───────────────────────
+
+describe('Controller Handlers for All 4 Analytics Endpoints', () => {
+  function createMockContext(query = {}, user = { id: TEST_USER_ID }) {
+    let statusCode = 200;
+    let jsonResponse = null;
+
+    const req = {
+      user,
+      query
+    };
+
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(payload) {
+        jsonResponse = payload;
+        return this;
+      }
+    };
+
+    return { req, res, getStatus: () => statusCode, getJson: () => jsonResponse };
+  }
+
+  it('GET /api/analytics/summary returns 200 with standard envelope', async () => {
+    const ctx = createMockContext();
+    const originalGetSummary = analyticsService.getSummary;
+    analyticsService.getSummary = async () => analyticsService.generateSummaryMetrics(DETERMINISTIC_TRANSACTIONS);
+
+    try {
+      await analyticsController.getSummary(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 200);
+      const json = ctx.getJson();
+      assert.strictEqual(json.success, true);
+      assert.strictEqual(json.message, 'Analytics summary retrieved successfully');
+      assert.strictEqual(json.data.totalSpending, 406.00);
+    } finally {
+      analyticsService.getSummary = originalGetSummary;
+    }
+  });
+
+  it('GET /api/analytics/categories returns 200 with standard envelope', async () => {
+    const ctx = createMockContext();
+    const originalGetCategories = analyticsService.getCategories;
+    analyticsService.getCategories = async () => analyticsService.calculateCategoryMetrics(DETERMINISTIC_TRANSACTIONS);
+
+    try {
+      await analyticsController.getCategories(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 200);
+      const json = ctx.getJson();
+      assert.strictEqual(json.success, true);
+      assert.strictEqual(json.message, 'Category analytics retrieved successfully');
+      assert.strictEqual(json.data.categories.length, 6);
+    } finally {
+      analyticsService.getCategories = originalGetCategories;
+    }
+  });
+
+  it('GET /api/analytics/trends returns 200 with standard envelope', async () => {
+    const ctx = createMockContext();
+    const originalGetTrends = analyticsService.getTrends;
+    analyticsService.getTrends = async () => analyticsService.calculateTrends(DETERMINISTIC_TRANSACTIONS);
+
+    try {
+      await analyticsController.getTrends(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 200);
+      const json = ctx.getJson();
+      assert.strictEqual(json.success, true);
+      assert.strictEqual(json.message, 'Spending trends retrieved successfully');
+      assert.strictEqual(json.data.trends.length, 7);
+    } finally {
+      analyticsService.getTrends = originalGetTrends;
+    }
+  });
+
+  it('GET /api/analytics/recurring returns 200 with standard envelope', async () => {
+    const ctx = createMockContext();
+    const originalGetRecurring = analyticsService.getRecurring;
+    analyticsService.getRecurring = async () => analyticsService.calculateRecurringTotals(DETERMINISTIC_TRANSACTIONS);
+
+    try {
+      await analyticsController.getRecurring(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 200);
+      const json = ctx.getJson();
+      assert.strictEqual(json.success, true);
+      assert.strictEqual(json.message, 'Recurring expense analytics retrieved successfully');
+      assert.strictEqual(json.data.recurringSpend, 125.00);
+    } finally {
+      analyticsService.getRecurring = originalGetRecurring;
+    }
+  });
+
+  it('All 4 endpoints reject unauthenticated requests with 401', async () => {
+    const endpoints = [
+      analyticsController.getSummary,
+      analyticsController.getCategories,
+      analyticsController.getTrends,
+      analyticsController.getRecurring
+    ];
+
+    for (const handler of endpoints) {
+      const ctx = createMockContext({}, null);
+      await handler(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 401);
+      assert.strictEqual(ctx.getJson().success, false);
+    }
+  });
+
+  it('All 4 endpoints reject invalid query date ranges with 400', async () => {
+    const endpoints = [
+      analyticsController.getSummary,
+      analyticsController.getCategories,
+      analyticsController.getTrends,
+      analyticsController.getRecurring
+    ];
+
+    for (const handler of endpoints) {
+      const ctx = createMockContext({ from: 'bad-date' });
+      await handler(ctx.req, ctx.res);
+      assert.strictEqual(ctx.getStatus(), 400);
+      assert.strictEqual(ctx.getJson().success, false);
+    }
+  });
+
+  it('canonical protect middleware allows authenticated requests with valid signed JWT', async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret_for_analytics_unit_tests';
+    const jwt = require('jsonwebtoken');
+    const User = require('../models/User');
+    const { protect } = require('../middleware/authMiddleware');
+
+    const validToken = jwt.sign({ id: TEST_USER_ID }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    const originalFindById = User.findById;
+    User.findById = async (id) => {
+      if (id === TEST_USER_ID) {
+        return {
+          _id: id,
+          name: 'Test Analyst',
+          email: 'analyst@example.com'
+        };
+      }
+      return null;
+    };
+
+    try {
+      const req = {
+        headers: {
+          authorization: `Bearer ${validToken}`
+        }
+      };
+      const res = {};
+      let nextCalled = false;
+
+      await protect(req, res, () => {
+        nextCalled = true;
+      });
+
+      assert.strictEqual(nextCalled, true);
+      assert.strictEqual(req.user.id, TEST_USER_ID);
+    } finally {
+      User.findById = originalFindById;
+    }
   });
 });
