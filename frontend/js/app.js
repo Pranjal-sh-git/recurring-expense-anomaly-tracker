@@ -13,7 +13,7 @@
  * All of that is delegated to the appropriate service modules.
  */
 
-import { getTransactions, addTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
+import { getTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
 import { detectAnomalies, countAnomalies }                     from './services/anomalyService.js';
 import { generateDashboardSummary }                            from './analytics/analyticsService.js';
 import { updateAllCharts }                                     from './analytics/charts.js';
@@ -30,9 +30,11 @@ import { initFilters, applyFilters }                           from './ui/transa
 import { initDateRangePicker, filterTransactionsByDate }      from './ui/dateRangePicker.js';
 import { initLandingPage }                                     from './landing.js';
 import { initAuthModal }                                       from './ui/authModal.js';
-import { updateNavbarUserDisplay }                             from './services/authService.js';
+import { isAuthenticated, updateNavbarUserDisplay }             from './services/authService.js';
 import { showDashboard }                                       from './ui/navigation.js';
 import { initCSVImport }                                       from './ui/csvImport.js';
+import { initEditModal, openEditModal, closeEditModal,
+         showEditModalError, showEditModalToast }              from './ui/editTransactionModal.js';
 
 // ─── Core refresh cycle ───────────────────────────────────────────────────────
 
@@ -64,7 +66,7 @@ function refreshApp() {
         totalTransactions: summary.totalTransactions,
         anomaliesDetected: anomalyCount,
         highestCategory:   summary.highestSpendingCategory ?? '--',
-    });
+    }, transactions);
 
     // ── Recurring count card + sidebar anomaly mirror ──
     updateRecurringCount(transactions);
@@ -90,10 +92,10 @@ function refreshApp() {
 
 /**
  * Handle form submission.
- * Performs UI-level validation first, then delegates to the store.
+ * Performs UI-level validation first, then delegates to the MongoDB-backed store.
  * @param {Event} e
  */
-function handleFormSubmit(e) {
+async function handleFormSubmit(e) {
     e.preventDefault();
 
     const values = getFormValues();
@@ -118,8 +120,8 @@ function handleFormSubmit(e) {
     }
 
     try {
-        // Store handles ID generation, normalization, deep validation, and persistence
-        addTransaction({
+        // Store handles normalization, backend persistence, and cache
+        await addTransaction({
             title:     values.title,
             amount:    values.amount,
             category:  values.category,
@@ -131,8 +133,48 @@ function handleFormSubmit(e) {
         resetForm();
         showFormSuccess('Transaction added successfully!');
     } catch (err) {
-        // Store throws descriptive errors on validation failure
+        // Descriptive errors from store or backend API
         showFormError(err.message || 'Failed to add transaction. Please try again.');
+    }
+}
+
+/**
+ * Handle row-level edit triggered from the transaction table.
+ * Opens the Edit Transaction Modal with existing transaction fields pre-filled.
+ * @param {string} id — Transaction ID from the store.
+ */
+function handleEdit(id) {
+    if (!id) return;
+    const tx = getTransactionById(id);
+    if (!tx) {
+        showEditModalToast('Transaction could not be found.', 'error');
+        return;
+    }
+    openEditModal(tx);
+}
+
+/**
+ * Handle save changes from the Edit Transaction Modal.
+ * Updates the backend store, synchronizes views, shows toast, and closes the modal.
+ * @param {Object} updatedValues
+ */
+async function handleUpdateSave(updatedValues) {
+    if (!updatedValues || !updatedValues.id) return;
+
+    try {
+        await updateTransaction(updatedValues.id, {
+            title:     updatedValues.title,
+            amount:    updatedValues.amount,
+            category:  updatedValues.category,
+            date:      updatedValues.date,
+            recurring: updatedValues.recurring,
+        });
+
+        refreshApp();
+        closeEditModal();
+        showEditModalToast('Transaction updated successfully!', 'success');
+    } catch (err) {
+        showEditModalError(err.message || 'Failed to update transaction. Please try again.');
     }
 }
 
@@ -140,11 +182,16 @@ function handleFormSubmit(e) {
  * Handle row-level delete triggered from the transaction table.
  * @param {string} id — Transaction ID from the store.
  */
-function handleDelete(id) {
+async function handleDelete(id) {
     if (!id) return;
-    const removed = deleteTransaction(id);
-    if (removed) {
-        refreshApp();
+    try {
+        const removed = await deleteTransaction(id);
+        if (removed) {
+            refreshApp();
+            showEditModalToast('Transaction deleted.', 'info');
+        }
+    } catch (err) {
+        showEditModalToast(err.message || 'Failed to delete transaction.', 'error');
     }
 }
 
@@ -154,7 +201,7 @@ function handleDelete(id) {
  * Bootstrap the application.
  * Called once when the DOM is ready.
  */
-function init() {
+async function init() {
     // 1. Navigation — must come first so section switching is active before any
     //    other module renders content (e.g. charts inside the overview section).
     initNavigation(refreshApp);
@@ -165,9 +212,10 @@ function init() {
     initAnomalyView();
     initForm();
     initFilters(renderFilteredTable);
-    initTransactionTable(handleDelete);  // pass delete callback for event delegation
-    initDateRangePicker(refreshApp);     // date range picker in top navbar
-    initCSVImport(refreshApp);           // CSV bulk import and sample template handler
+    initTransactionTable(handleDelete, handleEdit);  // pass delete and edit callbacks
+    initEditModal(handleUpdateSave);                 // initialize edit modal controller
+    initDateRangePicker(refreshApp);                 // date range picker in top navbar
+    initCSVImport(refreshApp);                       // CSV bulk import and sample template handler
 
     // 3. Attach submit handler after initForm() has injected the form element
     const form = document.getElementById('expense-form');
@@ -175,19 +223,33 @@ function init() {
         form.addEventListener('submit', handleFormSubmit);
     }
 
-    // 4. Populate UI from persisted store data (handles empty LocalStorage gracefully)
+    // 4. Initial load: If user is authenticated, fetch latest authoritative transactions from MongoDB
+    if (isAuthenticated()) {
+        try {
+            await reloadForUser();
+        } catch (loadErr) {
+            console.warn('[app.init] Could not load transactions from MongoDB, rendered from local cache:', loadErr);
+        }
+    }
+
+    // Refresh application UI (metrics, charts, anomaly cards, transaction table)
     refreshApp();
 
     // 5. Initialize Landing Page scroll reveals, navbar blur, and triggers
     initLandingPage();
 
     // 6. Initialize Authentication Modal and dynamic user display
-    initAuthModal(() => {
+    initAuthModal(async () => {
         updateNavbarUserDisplay();
-        reloadForUser();   // re-hydrate store from the newly logged-in user's isolated data bucket
+        try {
+            await reloadForUser();   // fetch authenticated user's transactions from MongoDB
+        } catch (authLoadErr) {
+            console.warn('[app.authModal] reloadForUser failed after auth:', authLoadErr);
+        }
         refreshApp();
         showDashboard('overview');
     });
+
     updateNavbarUserDisplay();
 }
 

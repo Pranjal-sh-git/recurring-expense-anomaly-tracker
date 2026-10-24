@@ -26,8 +26,9 @@
 
 import { formatCurrency, formatDate } from '../utils/formatters.js';
 
-// ─── Module-level delete callback (set by initTransactionTable) ───────────────
+// ─── Module-level callbacks (set by initTransactionTable) ─────────────────────
 let _onDeleteCallback = null;
+let _onEditCallback   = null;
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ function buildTableShell() {
                         <th>Amount</th>
                         <th>Type</th>
                         <th>Status</th>
-                        <th></th>
+                        <th class="tx-actions-header">Action</th>
                     </tr>
                 </thead>
                 <tbody id="transaction-table-body">
@@ -104,17 +105,32 @@ function buildRow(tx) {
             <td>${typeBadge}</td>
             <td>${statusBadge}</td>
             <td class="tx-actions">
-                <button
-                    class="btn-delete"
-                    data-id="${safeId}"
-                    title="Delete transaction"
-                    aria-label="Delete transaction"
-                >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                    </svg>
-                </button>
+                <div class="tx-actions-btns">
+                    <button
+                        type="button"
+                        class="btn-edit"
+                        data-id="${safeId}"
+                        title="Edit transaction"
+                        aria-label="Edit transaction"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="btn-delete"
+                        data-id="${safeId}"
+                        title="Delete transaction"
+                        aria-label="Delete transaction"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                </div>
             </td>
         </tr>
     `;
@@ -142,27 +158,38 @@ function buildEmptyRow() {
 
 /**
  * Initialise the transaction table by injecting the table shell with an empty state.
- * Sets up event delegation for delete buttons.
+ * Sets up event delegation for edit and delete buttons.
  * Call this once on page load.
  *
  * @param {Function} [onDelete] - Optional callback invoked with the transaction ID when a delete button is clicked.
+ * @param {Function} [onEdit]   - Optional callback invoked with the transaction ID when an edit button is clicked.
  */
-export function initTransactionTable(onDelete) {
+export function initTransactionTable(onDelete, onEdit) {
     console.log('Transaction Table UI Module initialized.');
 
-    // Store the delete callback for use in the delegated event handler
+    // Store callbacks for use in the delegated event handler
     _onDeleteCallback = typeof onDelete === 'function' ? onDelete : null;
+    _onEditCallback   = typeof onEdit === 'function' ? onEdit : null;
 
     const container = document.getElementById('transaction-table-container');
     if (!container) return;
 
     container.innerHTML = buildTableShell();
 
-    // Event delegation: handle delete button clicks anywhere in the container
+    // Event delegation: handle edit and delete button clicks anywhere in the container
     container.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn-delete');
-        if (btn && _onDeleteCallback) {
-            const id = btn.dataset.id;
+        const editBtn = e.target.closest('.btn-edit');
+        if (editBtn && _onEditCallback) {
+            const id = editBtn.dataset.id;
+            if (id) {
+                _onEditCallback(id);
+            }
+            return;
+        }
+
+        const delBtn = e.target.closest('.btn-delete');
+        if (delBtn && _onDeleteCallback) {
+            const id = delBtn.dataset.id;
             if (id) {
                 _onDeleteCallback(id);
             }

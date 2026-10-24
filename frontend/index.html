@@ -168,6 +168,113 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════════
+         PREMIUM GLASSMORPHISM EDIT TRANSACTION MODAL OVERLAY
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div class="edit-modal-backdrop" id="edit-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+        <div class="edit-modal-container">
+            <!-- Top Close Button -->
+            <button type="button" class="edit-modal-close-btn" id="edit-modal-close-btn" aria-label="Close edit modal">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+
+            <!-- Header Section -->
+            <div class="edit-modal-header">
+                <div class="edit-brand-badge">
+                    <span class="edit-brand-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </span>
+                    <span>Update Record</span>
+                </div>
+                <h2 class="edit-modal-title" id="edit-modal-title">Edit Transaction</h2>
+                <p class="edit-modal-subtitle">Modify details and update expense records in real-time.</p>
+            </div>
+
+            <!-- Edit Form -->
+            <form id="edit-transaction-form" class="edit-modal-form" novalidate>
+                <input type="hidden" id="edit-tx-id" name="id">
+
+                <div class="form-group">
+                    <label for="edit-tx-title">Title / Merchant</label>
+                    <input
+                        type="text"
+                        id="edit-tx-title"
+                        name="title"
+                        class="form-control"
+                        placeholder="e.g. Netflix Subscription"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-tx-amount">Amount (₹)</label>
+                    <input
+                        type="number"
+                        id="edit-tx-amount"
+                        name="amount"
+                        class="form-control"
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-tx-category">Category</label>
+                    <select id="edit-tx-category" name="category" class="form-control" required>
+                        <option value="" disabled selected>Select category...</option>
+                        <option value="Subscriptions">Subscriptions</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Rent">Rent</option>
+                        <option value="Groceries">Groceries</option>
+                        <option value="Dining">Dining</option>
+                        <option value="Shopping">Shopping</option>
+                        <option value="Transport">Transport</option>
+                        <option value="Healthcare">Healthcare</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-tx-date">Date</label>
+                    <input
+                        type="date"
+                        id="edit-tx-date"
+                        name="date"
+                        class="form-control"
+                        required
+                    >
+                </div>
+
+                <div class="form-group form-group--inline">
+                    <input type="checkbox" id="edit-tx-recurring" name="recurring">
+                    <label for="edit-tx-recurring">Recurring Expense</label>
+                </div>
+
+                <!-- Validation message -->
+                <p class="form-error" id="edit-form-error" role="alert" aria-live="polite" style="display:none;"></p>
+
+                <!-- Actions buttons -->
+                <div class="edit-modal-actions">
+                    <button type="button" class="btn-edit-cancel" id="btn-edit-modal-cancel">Cancel</button>
+                    <button type="submit" class="btn-edit-submit" id="btn-edit-modal-save">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Save Changes</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
          LANDING PAGE VIEW (Pixel-Faithful Reference Match)
          ═══════════════════════════════════════════════════════════════════════════ -->
     <div id="landing-page-view">
@@ -979,7 +1086,7 @@
                             </div>
                             <div class="metric-value" id="total-expenses-value">₹0.00</div>
                             <div class="metric-comparison">
-                                <span class="comp-badge comp-badge--green">↑ 12.4%</span>
+                                <span class="comp-badge comp-badge--neutral">0%</span>
                                 <span class="comp-text">vs last month</span>
                             </div>
                         </div>
@@ -999,7 +1106,7 @@
                             </div>
                             <div class="metric-value" id="total-transactions-value">0</div>
                             <div class="metric-comparison">
-                                <span class="comp-badge comp-badge--neutral">↑ 6</span>
+                                <span class="comp-badge comp-badge--neutral">0</span>
                                 <span class="comp-text">vs last month</span>
                             </div>
                         </div>
@@ -1018,7 +1125,7 @@
                             </div>
                             <div class="metric-value" id="anomalies-value">0</div>
                             <div class="metric-comparison">
-                                <span class="comp-badge comp-badge--danger">↑ 2</span>
+                                <span class="comp-badge comp-badge--neutral">0</span>
                                 <span class="comp-text">vs last month</span>
                             </div>
                         </div>
@@ -1036,7 +1143,7 @@
                             </div>
                             <div class="metric-value metric-value--sm" id="highest-category-value">--</div>
                             <div class="metric-comparison">
-                                <span class="comp-text comp-text--accent">42% of total expenses</span>
+                                <span class="comp-text comp-text--accent">0% of total expenses</span>
                             </div>
                         </div>
 
@@ -1054,8 +1161,8 @@
                             </div>
                             <div class="metric-value" id="recurring-count-value">0</div>
                             <div class="metric-comparison">
-                                <span class="comp-badge comp-badge--green">↑ 8.7%</span>
-                                <span class="comp-text">vs last month</span>
+                                <span class="comp-badge comp-badge--neutral">0</span>
+                                <span class="comp-text">recurring entries</span>
                             </div>
                         </div>
 

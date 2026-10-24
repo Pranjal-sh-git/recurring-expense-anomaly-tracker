@@ -52,7 +52,7 @@ export function initCSVImport(onImportSuccess) {
     }
 }
 
-function _processCSV(csvText, onImportSuccess) {
+async function _processCSV(csvText, onImportSuccess) {
     if (!csvText || !csvText.trim()) {
         _showToast('The selected CSV file is empty.', 'error');
         return;
@@ -69,8 +69,8 @@ function _processCSV(csvText, onImportSuccess) {
             return;
         }
 
-        // Load into transaction store (append = true)
-        loadDemoData(result.transactions, true);
+        // Load into transaction store and MongoDB (append = true)
+        await loadDemoData(result.transactions, true);
 
         // Refresh UI
         if (typeof onImportSuccess === 'function') {
