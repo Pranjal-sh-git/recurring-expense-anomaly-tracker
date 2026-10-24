@@ -23,4 +23,19 @@ const connectDB = async () => {
   }
 };
 
+/**
+ * Disconnect from MongoDB instance (useful for testing and graceful shutdown)
+ * @returns {Promise<void>}
+ */
+const disconnectDB = async () => {
+  try {
+    await mongoose.disconnect();
+    console.log('[Database] MongoDB disconnected cleanly.');
+  } catch (error) {
+    console.error(`[Database Error] Disconnection error: ${error.message}`);
+  }
+};
+
+connectDB.disconnectDB = disconnectDB;
+
 module.exports = connectDB;
