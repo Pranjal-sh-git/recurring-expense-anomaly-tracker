@@ -2,14 +2,27 @@ const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 
 /**
- * Helper to ensure user is authenticated
+ * Helper to ensure user is authenticated and extract user ID
+ * @param {import('express').Request} req
+ * @returns {string|null}
  */
 const getUserId = (req) => {
-  return req.user && (req.user.id || req.user._id ? (req.user.id || req.user._id).toString() : null);
+  if (!req.user) return null;
+  return (req.user.id || req.user._id ? (req.user.id || req.user._id).toString() : null);
 };
 
 /**
- * Helper to validate a date input
+ * Validates whether an ID is a valid 24-character hexadecimal MongoDB ObjectId
+ * @param {*} id
+ * @returns {boolean}
+ */
+const isValidObjectId = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-fA-F]{24}$/.test(id) && mongoose.Types.ObjectId.isValid(id);
+};
+
+/**
+ * Helper to parse and validate a date input
  * @param {*} dateVal
  * @returns {Date|null}
  */
@@ -57,7 +70,7 @@ const getTransactions = async (req, res, next) => {
       if (toVal) {
         let parsedTo;
         const trimmedTo = String(toVal).trim();
-        // If YYYY-MM-DD format (10 chars), extend to end of day
+        // If YYYY-MM-DD format (10 chars), extend to end of day in UTC
         if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedTo)) {
           parsedTo = new Date(`${trimmedTo}T23:59:59.999Z`);
         } else {
@@ -151,7 +164,7 @@ const getTransactionById = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid transaction ID format'
@@ -255,6 +268,12 @@ const createTransaction = async (req, res, next) => {
       data: transaction
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'A duplicate transaction record already exists'
+      });
+    }
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -281,7 +300,7 @@ const updateTransaction = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid transaction ID format'
@@ -296,6 +315,7 @@ const updateTransaction = async (req, res, next) => {
       });
     }
 
+    // Strictly protect and preserve record ownership (user/userId cannot be updated)
     const { title, amount, category, date, recurring, description } = req.body;
 
     if (title !== undefined) {
@@ -357,6 +377,12 @@ const updateTransaction = async (req, res, next) => {
       data: transaction
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'A duplicate transaction record already exists'
+      });
+    }
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -383,7 +409,7 @@ const deleteTransaction = async (req, res, next) => {
     }
 
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid transaction ID format'
@@ -411,7 +437,7 @@ const deleteTransaction = async (req, res, next) => {
 };
 
 /**
- * @desc    Batch import transactions with pre-validation
+ * @desc    Batch import transactions with pre-validation and duplicate handling
  * @route   POST /api/transactions/import (and /api/transactions/bulk)
  * @access  Private
  */
@@ -433,7 +459,7 @@ const importTransactions = async (req, res, next) => {
       });
     }
 
-    // Pre-validate ALL entries before saving any. Safe batch rejection.
+    // Pre-validate ALL entries before saving any (safe atomic batch rejection)
     const validationErrors = [];
     const validBatch = [];
 
@@ -496,18 +522,63 @@ const importTransactions = async (req, res, next) => {
       });
     }
 
+    // ─── Duplicate Handling ──────────────────────────────────────────────────
+    // Detect duplicate items within the batch (matching title, amount, category, and date)
+    const allowDuplicates = req.query.allowDuplicates === 'true' || req.body.allowDuplicates === true;
+    let finalBatch = validBatch;
+    let duplicatesSkipped = 0;
+
+    if (!allowDuplicates) {
+      const seenFingerprints = new Set();
+      const deduplicatedBatch = [];
+
+      for (const item of validBatch) {
+        const dateIso = item.date instanceof Date ? item.date.toISOString().split('T')[0] : String(item.date).split('T')[0];
+        const fingerprint = `${item.title.toLowerCase().trim()}|${item.amount}|${item.category.toLowerCase().trim()}|${dateIso}`;
+
+        if (seenFingerprints.has(fingerprint)) {
+          duplicatesSkipped++;
+          continue;
+        }
+
+        seenFingerprints.add(fingerprint);
+        deduplicatedBatch.push(item);
+      }
+
+      finalBatch = deduplicatedBatch;
+    }
+
+    if (finalBatch.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'All entries in the batch were duplicates. No new transactions inserted.',
+        data: {
+          importedCount: 0,
+          duplicatesSkipped,
+          transactions: []
+        }
+      });
+    }
+
     // Atomic insertion of validated records
-    const inserted = await Transaction.insertMany(validBatch);
+    const inserted = await Transaction.insertMany(finalBatch);
 
     return res.status(201).json({
       success: true,
-      message: `Successfully imported ${inserted.length} transactions`,
+      message: `Successfully imported ${inserted.length} transactions${duplicatesSkipped > 0 ? ` (${duplicatesSkipped} duplicates skipped)` : ''}`,
       data: {
         importedCount: inserted.length,
+        duplicatesSkipped,
         transactions: inserted
       }
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'A duplicate transaction record was detected during batch import'
+      });
+    }
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
