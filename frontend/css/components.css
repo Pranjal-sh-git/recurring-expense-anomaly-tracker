@@ -75,8 +75,16 @@
 }
 
 
-/* ─── Delete button ──────────────────────────────────────────────────────────── */
+/* ─── Table Action Buttons ───────────────────────────────────────────────────── */
 
+.tx-actions-btns {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-edit,
 .btn-delete {
     display: inline-flex;
     align-items: center;
@@ -87,7 +95,6 @@
     background: #f7f8fa;
     border: 1px solid transparent;
     border-radius: 8px;
-    color: #b0bac5;
     font-size: 0.75rem;
     cursor: pointer;
     transition: background-color var(--transition), border-color var(--transition), color var(--transition), transform var(--transition);
@@ -95,11 +102,26 @@
     flex-shrink: 0;
 }
 
+.btn-edit {
+    color: #64748b;
+}
+
+.btn-edit:hover {
+    background-color: #f0fdf4;
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #16a34a;
+    transform: scale(1.06);
+}
+
+.btn-delete {
+    color: #b0bac5;
+}
+
 .btn-delete:hover {
     background-color: #fef2f2;
     border-color: rgba(220, 38, 38, 0.2);
     color: #dc2626;
-    transform: scale(1.05);
+    transform: scale(1.06);
 }
 
 
@@ -128,13 +150,13 @@
     white-space: nowrap;
 }
 
-/* Actions column: keep tight, centered, and fully visible */
+/* Actions column: keep tight, centered, and fully visible with edit + delete */
 .transaction-table td:last-child,
 .transaction-table th:last-child,
 .tx-actions,
 .tx-actions-header {
-    width: 56px;
-    min-width: 56px;
+    width: 82px;
+    min-width: 82px;
     text-align: center;
     padding-left: 0.25rem !important;
     padding-right: 0.25rem !important;
@@ -249,3 +271,243 @@
 #total-transactions-card::before { background: var(--color-blue);  }
 #highest-spending-card::before  { background: var(--color-purple); }
 #recurring-count-card::before   { background: var(--color-green);  }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PREMIUM GLASSMORPHISM EDIT TRANSACTION MODAL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.edit-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(9, 13, 20, 0.65);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+}
+
+.edit-modal-backdrop.edit-modal--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.edit-modal-container {
+    width: 100%;
+    max-width: 440px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 
+        0 0 0 1px rgba(0, 0, 0, 0.05),
+        0 24px 60px -12px rgba(15, 23, 42, 0.18),
+        0 12px 28px -6px rgba(15, 23, 42, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-radius: 24px;
+    padding: 2rem 1.85rem 1.85rem;
+    box-sizing: border-box;
+    position: relative;
+    transform: translateY(24px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+    color: var(--text-primary);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.edit-modal-backdrop.edit-modal--visible .edit-modal-container {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+/* Close Button */
+.edit-modal-close-btn {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f4f6;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all var(--transition);
+    padding: 0;
+}
+
+.edit-modal-close-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: rotate(90deg);
+}
+
+/* Header & Badge */
+.edit-modal-header {
+    margin-bottom: 1.25rem;
+}
+
+.edit-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    background: #f0fdf4;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    color: #16a34a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    letter-spacing: 0.02em;
+}
+
+.edit-brand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-modal-title {
+    font-size: 1.28rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.3rem 0;
+    letter-spacing: -0.015em;
+}
+
+.edit-modal-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.45;
+}
+
+/* Modal Form Specifics */
+.edit-modal-form .form-group {
+    margin-bottom: 0.9rem;
+}
+
+.edit-modal-form .form-group label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+}
+
+.edit-modal-form .form-control {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    background: #f7f8fa;
+    border: 1.5px solid #edf1f5;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all var(--transition);
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.edit-modal-form .form-control:focus {
+    background: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91, 194, 54, 0.15);
+    outline: none;
+}
+
+/* Modal Actions */
+.edit-modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.35rem;
+}
+
+.btn-edit-cancel {
+    flex: 1;
+    padding: 0.68rem 1.2rem;
+    background: #f1f4f6;
+    color: var(--text-secondary);
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    text-align: center;
+}
+
+.btn-edit-cancel:hover {
+    background: #e2e8f0;
+    color: var(--text-primary);
+}
+
+.btn-edit-submit {
+    flex: 1.5;
+    padding: 0.68rem 1.2rem;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 9999px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    box-shadow: 0 4px 14px rgba(91, 194, 54, 0.28);
+}
+
+.btn-edit-submit:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(91, 194, 54, 0.38);
+}
+
+.btn-edit-submit:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 480px) {
+    .edit-modal-backdrop {
+        padding: 0.75rem;
+    }
+
+    .edit-modal-container {
+        padding: 1.5rem 1.25rem;
+        border-radius: 20px;
+    }
+
+    .edit-modal-actions {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+
+    .btn-edit-cancel,
+    .btn-edit-submit {
+        width: 100%;
+        flex: none;
+    }
+}
+

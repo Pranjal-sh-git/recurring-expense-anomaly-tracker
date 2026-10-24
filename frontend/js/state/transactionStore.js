@@ -8,7 +8,9 @@
  *
  * Exports:
  *   getTransactions()                   – Array (defensive copy)
+ *   getTransactionById(id)              – Object|null (defensive copy)
  *   addTransaction(tx)                  – Object (added tx) | throws on validation failure
+ *   updateTransaction(id, updates)      – Object (updated tx) | throws on validation failure
  *   deleteTransaction(id)               – boolean
  *   setTransactions(txArray)            – void  (replace in-memory state; does NOT persist)
  *   clearStore()                        – void  (clears memory + LocalStorage)
@@ -70,6 +72,18 @@ export function getTransactions() {
 }
 
 /**
+ * Retrieve a single transaction by ID.
+ * @param {string|number} id - Unique ID of the transaction.
+ * @returns {Object|null} A defensive copy of the transaction, or null if not found.
+ */
+export function getTransactionById(id) {
+    _ensureUserSync();
+    if (!id) return null;
+    const tx = transactions.find(t => String(t.id) === String(id));
+    return tx ? { ...tx } : null;
+}
+
+/**
  * Re-hydrate the in-memory store from the current user's LocalStorage key.
  * Call this immediately after login or account switch to load the correct data.
  */
@@ -108,6 +122,47 @@ export function addTransaction(transaction) {
 }
 
 /**
+ * Update an existing transaction by ID.
+ * Validates, normalizes, persists, and updates the in-memory store.
+ *
+ * @param {string|number} id - The transaction's unique ID.
+ * @param {Object} updates - Updated field values (title, amount, category, date, recurring).
+ * @returns {Object} The updated, normalized transaction (new copy).
+ * @throws {Error} If ID is missing, transaction not found, or validation fails.
+ */
+export function updateTransaction(id, updates) {
+    _ensureUserSync();
+    if (!id) {
+        throw new Error('Transaction ID is required for update.');
+    }
+
+    const index = transactions.findIndex(t => String(t.id) === String(id));
+    if (index === -1) {
+        throw new Error(`Transaction with ID "${id}" was not found.`);
+    }
+
+    const existing = transactions[index];
+    const candidate = {
+        ...existing,
+        ...updates,
+        id: existing.id, // Preserve immutable ID
+    };
+
+    const { isValid, errors } = validateTransaction(candidate);
+    if (!isValid) {
+        const msg = Object.entries(errors)
+            .map(([field, err]) => `${field}: ${err}`)
+            .join(', ');
+        throw new Error(`Validation failed: ${msg}`);
+    }
+
+    const normalized = normalizeTransaction(candidate);
+    transactions[index] = normalized;
+    saveTransactions(transactions, _userId());
+    return { ...normalized };
+}
+
+/**
  * Delete a transaction by ID.
  * @param {string} id - The transaction's unique ID.
  * @returns {boolean} True if found and deleted, false if not found.
@@ -115,7 +170,7 @@ export function addTransaction(transaction) {
 export function deleteTransaction(id) {
     _ensureUserSync();
     if (!id) return false;
-    const index = transactions.findIndex(t => t.id === id);
+    const index = transactions.findIndex(t => String(t.id) === String(id));
     if (index === -1) return false;
 
     transactions.splice(index, 1);
@@ -192,7 +247,9 @@ export function loadDemoData(demoTransactions, append = false) {
 
 export default {
     getTransactions,
+    getTransactionById,
     addTransaction,
+    updateTransaction,
     deleteTransaction,
     setTransactions,
     clearStore,

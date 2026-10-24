@@ -207,3 +207,23 @@ export function showFormSuccess(message) {
     }
 }
 
+/**
+ * Pre-populate the transaction entry form with existing transaction values.
+ * Useful for editing or cloning expenses.
+ * @param {Object} tx
+ */
+export function populateForm(tx) {
+    if (!tx) return;
+    const titleEl    = document.getElementById('tx-title');
+    const amountEl   = document.getElementById('tx-amount');
+    const categoryEl = document.getElementById('tx-category');
+    const dateEl     = document.getElementById('tx-date');
+    const recurringEl = document.getElementById('tx-recurring');
+
+    if (titleEl && tx.title !== undefined)       titleEl.value = tx.title;
+    if (amountEl && tx.amount !== undefined)     amountEl.value = tx.amount;
+    if (categoryEl && tx.category !== undefined) categoryEl.value = tx.category;
+    if (dateEl && tx.date !== undefined)         dateEl.value = tx.date;
+    if (recurringEl)                             recurringEl.checked = Boolean(tx.recurring);
+}
+

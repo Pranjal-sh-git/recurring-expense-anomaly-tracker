@@ -13,7 +13,7 @@
  * All of that is delegated to the appropriate service modules.
  */
 
-import { getTransactions, addTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
+import { getTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
 import { detectAnomalies, countAnomalies }                     from './services/anomalyService.js';
 import { generateDashboardSummary }                            from './analytics/analyticsService.js';
 import { updateAllCharts }                                     from './analytics/charts.js';
@@ -33,6 +33,8 @@ import { initAuthModal }                                       from './ui/authMo
 import { updateNavbarUserDisplay }                             from './services/authService.js';
 import { showDashboard }                                       from './ui/navigation.js';
 import { initCSVImport }                                       from './ui/csvImport.js';
+import { initEditModal, openEditModal, closeEditModal,
+         showEditModalError, showEditModalToast }              from './ui/editTransactionModal.js';
 
 // ─── Core refresh cycle ───────────────────────────────────────────────────────
 
@@ -137,6 +139,46 @@ function handleFormSubmit(e) {
 }
 
 /**
+ * Handle row-level edit triggered from the transaction table.
+ * Opens the Edit Transaction Modal with existing transaction fields pre-filled.
+ * @param {string} id — Transaction ID from the store.
+ */
+function handleEdit(id) {
+    if (!id) return;
+    const tx = getTransactionById(id);
+    if (!tx) {
+        showEditModalToast('Transaction could not be found.', 'error');
+        return;
+    }
+    openEditModal(tx);
+}
+
+/**
+ * Handle save changes from the Edit Transaction Modal.
+ * Updates the store, synchronizes views, shows toast, and closes the modal.
+ * @param {Object} updatedValues
+ */
+function handleUpdateSave(updatedValues) {
+    if (!updatedValues || !updatedValues.id) return;
+
+    try {
+        updateTransaction(updatedValues.id, {
+            title:     updatedValues.title,
+            amount:    updatedValues.amount,
+            category:  updatedValues.category,
+            date:      updatedValues.date,
+            recurring: updatedValues.recurring,
+        });
+
+        refreshApp();
+        closeEditModal();
+        showEditModalToast('Transaction updated successfully!', 'success');
+    } catch (err) {
+        showEditModalError(err.message || 'Failed to update transaction. Please try again.');
+    }
+}
+
+/**
  * Handle row-level delete triggered from the transaction table.
  * @param {string} id — Transaction ID from the store.
  */
@@ -145,6 +187,7 @@ function handleDelete(id) {
     const removed = deleteTransaction(id);
     if (removed) {
         refreshApp();
+        showEditModalToast('Transaction deleted.', 'info');
     }
 }
 
@@ -165,9 +208,10 @@ function init() {
     initAnomalyView();
     initForm();
     initFilters(renderFilteredTable);
-    initTransactionTable(handleDelete);  // pass delete callback for event delegation
-    initDateRangePicker(refreshApp);     // date range picker in top navbar
-    initCSVImport(refreshApp);           // CSV bulk import and sample template handler
+    initTransactionTable(handleDelete, handleEdit);  // pass delete and edit callbacks
+    initEditModal(handleUpdateSave);                 // initialize edit modal controller
+    initDateRangePicker(refreshApp);                 // date range picker in top navbar
+    initCSVImport(refreshApp);                       // CSV bulk import and sample template handler
 
     // 3. Attach submit handler after initForm() has injected the form element
     const form = document.getElementById('expense-form');
