@@ -1,97 +1,46 @@
 /**
- * authService.js — LocalStorage Authentication & Session Service
+ * authService.js — Backend JWT Authentication & Session Service
  *
  * Responsibilities:
- *   - Manage registered users array in localStorage (`expenseTrackUsers`).
- *   - Manage active session user in localStorage (`expenseTrackCurrentUser`).
- *   - Manage auth boolean flag in localStorage (`expenseTrackAuth`).
- *   - Provide robust login, signup, and logout methods.
+ *   - Authenticate with backend MongoDB via JWT (/api/auth/login, /api/auth/register).
+ *   - Manage active session user in localStorage (`kharchaSenseCurrentUser`).
+ *   - Manage auth boolean flag in localStorage (`kharchaSenseAuth`).
+ *   - Delegate token persistence and header injection to apiClient.js.
+ *   - Provide robust async login, signup, verifySession, and logout methods.
  *   - Provide helper for updating top navbar user info dynamically.
- *   - Seed a demo account on first run so existing users can test immediately.
  */
 
-const STORAGE_KEY_USERS = 'kharchaSenseUsers';
+import { getToken, setToken, removeToken, post, get } from './apiClient.js';
+
 const STORAGE_KEY_CURRENT_USER = 'kharchaSenseCurrentUser';
 const STORAGE_KEY_AUTH = 'kharchaSenseAuth';
 
-// Legacy keys for migration support
-const LEGACY_STORAGE_KEY_USERS = 'expenseTrackUsers';
+// Legacy keys for fallback migration
 const LEGACY_STORAGE_KEY_CURRENT_USER = 'expenseTrackCurrentUser';
 const LEGACY_STORAGE_KEY_AUTH = 'expenseTrackAuth';
 
-// Default demo account to ensure instant access if no users exist
-const DEFAULT_DEMO_USER = {
-    id: 'user_demo_001',
-    name: 'Alex',
-    email: 'test@kharchasense.app',
-    password: 'password123'
-};
-
 /**
- * Get all registered users from localStorage.
- * @returns {Array<object>}
- */
-export function getUsers() {
-    try {
-        // Migrate legacy localStorage keys if present
-        if (!localStorage.getItem(STORAGE_KEY_USERS) && localStorage.getItem(LEGACY_STORAGE_KEY_USERS)) {
-            localStorage.setItem(STORAGE_KEY_USERS, localStorage.getItem(LEGACY_STORAGE_KEY_USERS));
-        }
-        if (!localStorage.getItem(STORAGE_KEY_CURRENT_USER) && localStorage.getItem(LEGACY_STORAGE_KEY_CURRENT_USER)) {
-            localStorage.setItem(STORAGE_KEY_CURRENT_USER, localStorage.getItem(LEGACY_STORAGE_KEY_CURRENT_USER));
-        }
-        if (!localStorage.getItem(STORAGE_KEY_AUTH) && localStorage.getItem(LEGACY_STORAGE_KEY_AUTH)) {
-            localStorage.setItem(STORAGE_KEY_AUTH, localStorage.getItem(LEGACY_STORAGE_KEY_AUTH));
-        }
-
-        const data = localStorage.getItem(STORAGE_KEY_USERS);
-        if (!data) {
-            // Seed initial demo user
-            const initial = [DEFAULT_DEMO_USER];
-            localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(initial));
-            return initial;
-        }
-        const users = JSON.parse(data) || [];
-        // Ensure test@kharchasense.app demo user is present
-        const hasDemo = users.some(u => u.email.toLowerCase() === 'test@kharchasense.app');
-        if (!hasDemo) {
-            const legacyDemo = users.find(u => u.id === 'user_demo_001' || u.email.toLowerCase() === 'test@expensetrack.app' || u.email.toLowerCase() === 'pranjal@expensetrack.app');
-            if (legacyDemo) {
-                legacyDemo.email = 'test@kharchasense.app';
-                legacyDemo.name = 'Alex';
-            } else {
-                users.unshift(DEFAULT_DEMO_USER);
-            }
-            localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-        }
-        return users;
-    } catch (e) {
-        console.error('Error reading users from localStorage:', e);
-        return [DEFAULT_DEMO_USER];
-    }
-}
-
-/**
- * Check if a user is currently authenticated.
+ * Check if a user is currently authenticated with a valid JWT token.
  * @returns {boolean}
  */
 export function isAuthenticated() {
     try {
-        const isAuth = localStorage.getItem(STORAGE_KEY_AUTH);
+        const token = getToken();
         const currentUser = getCurrentUser();
-        return (isAuth === 'true' || isAuth === true) && Boolean(currentUser && currentUser.email);
+        const isAuth = localStorage.getItem(STORAGE_KEY_AUTH) || localStorage.getItem(LEGACY_STORAGE_KEY_AUTH);
+        return Boolean(token && currentUser && currentUser.email && (isAuth === 'true' || isAuth === true));
     } catch (e) {
         return false;
     }
 }
 
 /**
- * Get the currently logged-in user object.
+ * Get the currently logged-in user object from localStorage.
  * @returns {object|null}
  */
 export function getCurrentUser() {
     try {
-        const data = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
+        const data = localStorage.getItem(STORAGE_KEY_CURRENT_USER) || localStorage.getItem(LEGACY_STORAGE_KEY_CURRENT_USER);
         return data ? JSON.parse(data) : null;
     } catch (e) {
         return null;
@@ -99,12 +48,12 @@ export function getCurrentUser() {
 }
 
 /**
- * Log in a user with email and password.
+ * Log in a user via backend JWT authentication.
  * @param {string} email
  * @param {string} password
- * @returns {{ success: boolean, user?: object, error?: string }}
+ * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
  */
-export function login(email, password) {
+export async function login(email, password) {
     const trimmedEmail = (email || '').trim().toLowerCase();
     const trimmedPassword = (password || '').trim();
 
@@ -112,38 +61,53 @@ export function login(email, password) {
         return { success: false, error: 'Please enter both email and password.' };
     }
 
-    const users = getUsers();
-    const matchedUser = users.find(
-        u => u.email.toLowerCase() === trimmedEmail && u.password === trimmedPassword
-    );
+    try {
+        const response = await post('/api/auth/login', {
+            email: trimmedEmail,
+            password: trimmedPassword
+        });
 
-    if (!matchedUser) {
-        return { success: false, error: 'Invalid email or password.' };
+        const authData = response.data || {};
+        const token = authData.token;
+        const user = authData.user || {};
+
+        if (!token) {
+            throw new Error('Authentication succeeded but no authorization token was received.');
+        }
+
+        // Store JWT token in apiClient / localStorage
+        setToken(token);
+
+        // Save active user profile in localStorage session
+        const sessionUser = {
+            id: user.id || user._id || '',
+            name: user.name || 'User',
+            email: user.email || trimmedEmail
+        };
+
+        localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(sessionUser));
+        localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+
+        updateNavbarUserDisplay();
+
+        return { success: true, user: sessionUser };
+    } catch (error) {
+        console.error('[authService.login error]:', error);
+        return {
+            success: false,
+            error: error.message || 'Invalid email or password.'
+        };
     }
-
-    // Save session
-    const sessionUser = {
-        id: matchedUser.id,
-        name: matchedUser.name,
-        email: matchedUser.email
-    };
-
-    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(sessionUser));
-    localStorage.setItem(STORAGE_KEY_AUTH, 'true');
-
-    updateNavbarUserDisplay();
-
-    return { success: true, user: sessionUser };
 }
 
 /**
- * Sign up a new user.
+ * Sign up a new user via backend JWT authentication.
  * @param {string} name
  * @param {string} email
  * @param {string} password
- * @returns {{ success: boolean, user?: object, error?: string }}
+ * @returns {Promise<{ success: boolean, user?: object, error?: string }>}
  */
-export function signup(name, email, password) {
+export async function signup(name, email, password) {
     const trimmedName = (name || '').trim();
     const trimmedEmail = (email || '').trim().toLowerCase();
     const trimmedPassword = (password || '').trim();
@@ -161,54 +125,102 @@ export function signup(name, email, password) {
         return { success: false, error: 'Password must have at least 6 characters.' };
     }
 
-    const users = getUsers();
-    const emailExists = users.some(u => u.email.toLowerCase() === trimmedEmail);
-
-    if (emailExists) {
-        return { success: false, error: 'An account with this email already exists.' };
-    }
-
-    // Create user
-    const newUser = {
-        id: 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        name: trimmedName,
-        email: trimmedEmail,
-        password: trimmedPassword
-    };
-
-    users.push(newUser);
     try {
-        localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(users));
-    } catch (e) {
-        return { success: false, error: 'Storage error while saving user. Please try again.' };
+        const response = await post('/api/auth/register', {
+            name: trimmedName,
+            email: trimmedEmail,
+            password: trimmedPassword
+        });
+
+        const authData = response.data || {};
+        const token = authData.token;
+        const user = authData.user || {};
+
+        if (!token) {
+            throw new Error('Registration succeeded but no authorization token was received.');
+        }
+
+        // Store JWT token
+        setToken(token);
+
+        // Save active session
+        const sessionUser = {
+            id: user.id || user._id || '',
+            name: user.name || trimmedName,
+            email: user.email || trimmedEmail
+        };
+
+        localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(sessionUser));
+        localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+
+        updateNavbarUserDisplay();
+
+        return { success: true, user: sessionUser };
+    } catch (error) {
+        console.error('[authService.signup error]:', error);
+        return {
+            success: false,
+            error: error.message || 'Registration failed. Please try again.'
+        };
+    }
+}
+
+/**
+ * Verify current session with backend /api/auth/me.
+ * Refreshes user details if valid; clears session if token expired or invalid.
+ * @returns {Promise<object|null>}
+ */
+export async function verifySession() {
+    const token = getToken();
+    if (!token) {
+        logout();
+        return null;
     }
 
-    // Save active session
-    const sessionUser = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email
-    };
-
-    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(sessionUser));
-    localStorage.setItem(STORAGE_KEY_AUTH, 'true');
-
-    updateNavbarUserDisplay();
-
-    return { success: true, user: sessionUser };
+    try {
+        const response = await get('/api/auth/me');
+        const user = response?.data?.user;
+        if (user) {
+            const sessionUser = {
+                id: user.id || user._id || '',
+                name: user.name,
+                email: user.email
+            };
+            localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(sessionUser));
+            localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+            updateNavbarUserDisplay();
+            return sessionUser;
+        }
+        return getCurrentUser();
+    } catch (error) {
+        // If 401 Unauthorized, token has expired or is invalid
+        if (error.status === 401) {
+            console.warn('[authService] Session expired. Logging out.');
+            logout();
+        }
+        return null;
+    }
 }
 
 /**
  * Log out the current user.
- * Note: Does NOT delete expense transactions or other application data!
+ * Clears JWT token and auth session flags without deleting application data.
  */
 export function logout() {
-    localStorage.removeItem(STORAGE_KEY_AUTH);
-    localStorage.removeItem(STORAGE_KEY_CURRENT_USER);
+    removeToken();
+    try {
+        localStorage.removeItem(STORAGE_KEY_AUTH);
+        localStorage.removeItem(STORAGE_KEY_CURRENT_USER);
+        localStorage.removeItem(LEGACY_STORAGE_KEY_AUTH);
+        localStorage.removeItem(LEGACY_STORAGE_KEY_CURRENT_USER);
+    } catch (e) {
+        console.warn('[authService] Error clearing auth storage:', e);
+    }
+    updateNavbarUserDisplay();
 }
 
 /**
- * Dynamically update the top navbar user greeting and name.
+ * Dynamically update the top navbar user greeting, avatar, and name.
  */
 export function updateNavbarUserDisplay() {
     const user = getCurrentUser();
@@ -217,8 +229,8 @@ export function updateNavbarUserDisplay() {
     const dropdownNameEl = document.getElementById('dropdown-user-name');
     const dropdownEmailEl = document.getElementById('dropdown-user-email');
 
-    const displayName = user && user.name ? user.name : 'Alex';
-    const displayEmail = user && user.email ? user.email : 'test@kharchasense.app';
+    const displayName = user && user.name ? user.name : 'Account';
+    const displayEmail = user && user.email ? user.email : 'Sign in to access data';
 
     if (nameEl) {
         nameEl.textContent = displayName;
@@ -241,3 +253,13 @@ export function updateNavbarUserDisplay() {
         greetingEl.textContent = greeting;
     }
 }
+
+export default {
+    isAuthenticated,
+    getCurrentUser,
+    login,
+    signup,
+    logout,
+    verifySession,
+    updateNavbarUserDisplay
+};

@@ -17,11 +17,11 @@ let _onFilterChangeCallback = null;
  * Filter state object holding current control values.
  */
 const _filterState = {
-    search:   '',
+    search: '',
     category: '',
-    type:     '',  // '', 'recurring', 'oneoff'
-    status:   '',  // '', 'normal', 'anomaly'
-    sort:     'newest', // 'newest', 'oldest', 'amount-desc', 'amount-asc'
+    type: '',  // '', 'recurring', 'oneoff'
+    status: '',  // '', 'normal', 'anomaly'
+    sort: 'newest', // 'newest', 'oldest', 'amount-desc', 'amount-asc'
 };
 
 /**
@@ -77,6 +77,7 @@ export function initFilters(onFilterChange) {
                         <option value="Shopping">Shopping</option>
                         <option value="Transport">Transport</option>
                         <option value="Healthcare">Healthcare</option>
+                        <option value="Food">Food</option> 
                         <option value="Other">Other</option>
                     </select>
                 </div>
@@ -129,11 +130,11 @@ export function initFilters(onFilterChange) {
     const resetButton = document.getElementById('filter-reset');
 
     const handleInput = () => {
-        _filterState.search   = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        _filterState.search = searchInput ? searchInput.value.trim().toLowerCase() : '';
         _filterState.category = categorySelect ? categorySelect.value : '';
-        _filterState.type     = typeSelect ? typeSelect.value : '';
-        _filterState.status   = statusSelect ? statusSelect.value : '';
-        _filterState.sort     = sortSelect ? sortSelect.value : 'newest';
+        _filterState.type = typeSelect ? typeSelect.value : '';
+        _filterState.status = statusSelect ? statusSelect.value : '';
+        _filterState.sort = sortSelect ? sortSelect.value : 'newest';
 
         if (_onFilterChangeCallback) {
             _onFilterChangeCallback();
@@ -160,11 +161,11 @@ export function initFilters(onFilterChange) {
  * Reset filter controls and internal state to initial values.
  */
 export function resetFilters() {
-    _filterState.search   = '';
+    _filterState.search = '';
     _filterState.category = '';
-    _filterState.type     = '';
-    _filterState.status   = '';
-    _filterState.sort     = 'newest';
+    _filterState.type = '';
+    _filterState.status = '';
+    _filterState.sort = 'newest';
 
     const searchInput = document.getElementById('filter-search');
     const categorySelect = document.getElementById('filter-category');

@@ -15,6 +15,7 @@
 import { formatCurrency, formatDate } from '../utils/formatters.js';
 import { getTransactions } from '../state/transactionStore.js';
 import { detectAnomalies } from '../services/anomalyService.js';
+import { getActiveDateRange } from './dateRangePicker.js';
 
 // ─── Element ID map ───────────────────────────────────────────────────────────
 
@@ -74,9 +75,28 @@ export function initDashboard() {
     setText(ELEMENT_IDS.totalTransactions, '0');
     setText(ELEMENT_IDS.anomaliesDetected, '0');
     setText(ELEMENT_IDS.highestCategory,   '--');
-    setText(ELEMENT_IDS.recurringCount,    '0');
+    setText(ELEMENT_IDS.recurringCount,    '₹0.00');
     setText(ELEMENT_IDS.sidebarTotal,      '0');
     setText(ELEMENT_IDS.sidebarAnomalies,  '0');
+
+    _updateMetricComparisons([]);
+
+    const highestCard = document.getElementById('highest-spending-card');
+    if (highestCard) {
+        const text = highestCard.querySelector('.comp-text');
+        if (text) text.textContent = '0% of total expenses';
+    }
+
+    const recCard = document.getElementById('recurring-count-card');
+    if (recCard) {
+        const badge = recCard.querySelector('.comp-badge');
+        const text  = recCard.querySelector('.comp-text');
+        if (badge) {
+            badge.textContent = '0';
+            badge.className   = 'comp-badge comp-badge--neutral';
+        }
+        if (text) text.textContent = 'recurring entries';
+    }
 
     const listEl = document.getElementById(ELEMENT_IDS.recentList);
     if (listEl) {
@@ -97,14 +117,15 @@ export function initDashboard() {
  * @param {string|number} [data.totalTransactions] - Total transaction count.
  * @param {string|number} [data.anomaliesDetected] - Number of anomalies detected.
  * @param {string}        [data.highestCategory]   - Name of the highest-spend category.
+ * @param {Array<object>} [filteredTransactions]   - Active date-filtered transaction objects.
  */
 export function updateDashboard({
     totalExpenses,
     totalTransactions,
     anomaliesDetected,
     highestCategory,
-} = {}) {
-    const transactions = getTransactions();
+} = {}, filteredTransactions = null) {
+    const transactions = Array.isArray(filteredTransactions) ? filteredTransactions : getTransactions();
 
     if (totalExpenses     !== undefined) {
         setText(ELEMENT_IDS.totalExpenses, totalExpenses);
@@ -151,6 +172,8 @@ export function updateDashboard({
         }
     }
 
+    _updateMetricComparisons(transactions);
+
     // Update secondary overview insight cards
     _updateOverviewRecurring(transactions);
     _updateOverviewSummary(transactions);
@@ -174,8 +197,156 @@ export function updateRecurringCount(transactions) {
     if (parent) {
         const badge = parent.querySelector('.comp-badge');
         const text = parent.querySelector('.comp-text');
-        if (badge) badge.textContent = `↑ ${count}`;
+        if (badge) {
+            badge.textContent = count > 0 ? `↑ ${count}` : '0';
+            badge.className = count > 0 ? 'comp-badge comp-badge--neutral' : 'comp-badge comp-badge--neutral';
+        }
         if (text) text.textContent = `recurring entries`;
+    }
+}
+
+/**
+ * Update comparison badges for Total Expenses, Total Transactions, and Anomalies Detected cards.
+ * Always computes current metrics directly from the active filtered transaction list so main text values
+ * and comparison badges are 100% consistent.
+ *
+ * @param {Array<object>} transactions - Active filtered transaction objects.
+ */
+function _updateMetricComparisons(transactions) {
+    const expCard  = document.getElementById('total-expenses-card');
+    const txCard   = document.getElementById('total-transactions-card');
+    const anomCard = document.getElementById('anomalies-detected-card');
+
+    const activeList = Array.isArray(transactions) ? transactions : [];
+    const analyzedCurr = detectAnomalies(activeList);
+
+    // Current metrics derived STRICTLY from activeList (matches main card numbers)
+    const currTotal = activeList.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const currCount = activeList.length;
+    const currAnomalies = analyzedCurr.filter(t => Boolean(t.isAnomaly)).length;
+
+    const dateRange = getActiveDateRange();
+    const isFilteredRange = Boolean(dateRange && dateRange.type !== 'all' && (dateRange.startDate || dateRange.endDate));
+
+    let prevData = null;
+    let comparisonLabel = 'vs last month';
+
+    if (isFilteredRange) {
+        comparisonLabel = 'vs prev period';
+
+        // Determine previous period bounds if startDate and endDate exist
+        if (dateRange.startDate && dateRange.endDate) {
+            const start = new Date(dateRange.startDate);
+            const end = new Date(dateRange.endDate);
+            if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                const diffMs = end.getTime() - start.getTime();
+                const durationDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+
+                const prevEnd = new Date(start.getTime() - (24 * 60 * 60 * 1000));
+                const prevStart = new Date(prevEnd.getTime() - ((durationDays - 1) * 24 * 60 * 60 * 1000));
+
+                const pStartStr = prevStart.toISOString().slice(0, 10);
+                const pEndStr = prevEnd.toISOString().slice(0, 10);
+
+                const allRaw = getTransactions();
+                const prevTransactions = allRaw.filter(t => {
+                    if (!t || !t.date) return false;
+                    const d = String(t.date).trim();
+                    return d >= pStartStr && d <= pEndStr;
+                });
+
+                const analyzedPrev = detectAnomalies(prevTransactions);
+                prevData = {
+                    total: prevTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0),
+                    count: prevTransactions.length,
+                    anomalies: analyzedPrev.filter(t => Boolean(t.isAnomaly)).length,
+                };
+            }
+        }
+    } else {
+        // "All Time" mode: compare latest month vs previous month
+        comparisonLabel = 'vs last month';
+        const allRaw = getTransactions();
+        const analyzed = detectAnomalies(allRaw);
+        const monthsMap = {};
+
+        analyzed.forEach(t => {
+            if (!t.date) return;
+            const d = new Date(t.date);
+            if (isNaN(d.getTime())) return;
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            if (!monthsMap[key]) {
+                monthsMap[key] = { total: 0, count: 0, anomalies: 0 };
+            }
+            monthsMap[key].total += Number(t.amount) || 0;
+            monthsMap[key].count += 1;
+            if (t.isAnomaly) {
+                monthsMap[key].anomalies += 1;
+            }
+        });
+
+        const sortedMonths = Object.keys(monthsMap).sort();
+        if (sortedMonths.length > 1) {
+            const prevKey = sortedMonths[sortedMonths.length - 2];
+            prevData = monthsMap[prevKey];
+        }
+    }
+
+    // 1. Total Expenses Comparison
+    if (!prevData || prevData.total === 0) {
+        _setCardComparison(expCard, '0%', 'comp-badge--neutral', comparisonLabel);
+    } else {
+        const diffPct = ((currTotal - prevData.total) / prevData.total) * 100;
+        if (Math.abs(diffPct) < 0.1) {
+            _setCardComparison(expCard, '0%', 'comp-badge--neutral', comparisonLabel);
+        } else if (diffPct > 0) {
+            _setCardComparison(expCard, `↑ ${diffPct.toFixed(1)}%`, 'comp-badge--green', comparisonLabel);
+        } else {
+            _setCardComparison(expCard, `↓ ${Math.abs(diffPct).toFixed(1)}%`, 'comp-badge--green', comparisonLabel);
+        }
+    }
+
+    // 2. Total Transactions Comparison
+    if (!prevData) {
+        _setCardComparison(txCard, '0', 'comp-badge--neutral', comparisonLabel);
+    } else {
+        const countDiff = currCount - prevData.count;
+        if (countDiff > 0) {
+            _setCardComparison(txCard, `↑ ${countDiff}`, 'comp-badge--neutral', comparisonLabel);
+        } else if (countDiff < 0) {
+            _setCardComparison(txCard, `↓ ${Math.abs(countDiff)}`, 'comp-badge--neutral', comparisonLabel);
+        } else {
+            _setCardComparison(txCard, '0', 'comp-badge--neutral', comparisonLabel);
+        }
+    }
+
+    // 3. Anomalies Detected Comparison
+    if (currAnomalies === 0) {
+        _setCardComparison(anomCard, '0', 'comp-badge--neutral', comparisonLabel);
+    } else if (!prevData) {
+        _setCardComparison(anomCard, `↑ ${currAnomalies}`, 'comp-badge--danger', comparisonLabel);
+    } else {
+        const anomDiff = currAnomalies - prevData.anomalies;
+        if (anomDiff > 0) {
+            _setCardComparison(anomCard, `↑ ${anomDiff}`, 'comp-badge--danger', comparisonLabel);
+        } else if (anomDiff < 0) {
+            _setCardComparison(anomCard, `↓ ${Math.abs(anomDiff)}`, 'comp-badge--green', comparisonLabel);
+        } else {
+            _setCardComparison(anomCard, '0', 'comp-badge--neutral', comparisonLabel);
+        }
+    }
+}
+
+function _setCardComparison(cardEl, badgeText, badgeClass, textContent) {
+    if (!cardEl) return;
+    const badge = cardEl.querySelector('.comp-badge');
+    const text  = cardEl.querySelector('.comp-text');
+    if (badge) {
+        badge.textContent = badgeText;
+        badge.className   = `comp-badge ${badgeClass}`;
+    }
+    if (text) {
+        text.textContent = textContent;
     }
 }
 

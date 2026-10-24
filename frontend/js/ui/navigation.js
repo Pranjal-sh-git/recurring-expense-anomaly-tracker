@@ -72,10 +72,48 @@ export function initNavigation(onRefresh) {
 }
 
 /**
+ * Synchronize Landing Page CTA buttons with the current authentication state.
+ * If logged in: buttons display "Go to Dashboard".
+ * If logged out: buttons display "Get Started" / "Explore Dashboard".
+ */
+export function updateLandingAuthState() {
+    const navBtn  = document.getElementById('btn-landing-nav-explore');
+    const heroBtn = document.getElementById('btn-hero-explore-dashboard');
+    const darkBtn = document.getElementById('btn-dark-cta-explore');
+
+    const loggedIn = isAuthenticated();
+
+    if (navBtn) {
+        const textSpan = navBtn.querySelector('span');
+        if (textSpan) {
+            textSpan.textContent = loggedIn ? 'Go to Dashboard' : 'Get Started';
+        }
+        navBtn.title = loggedIn ? 'Go to your KharchaSense Dashboard' : 'Get Started with KharchaSense';
+    }
+
+    if (heroBtn) {
+        const textSpan = heroBtn.querySelector('span');
+        if (textSpan) {
+            textSpan.textContent = loggedIn ? 'Go to Dashboard' : 'Explore Dashboard';
+        }
+        heroBtn.title = loggedIn ? 'Go to your KharchaSense Dashboard' : 'Open KharchaSense Dashboard';
+    }
+
+    if (darkBtn) {
+        const textSpan = darkBtn.querySelector('span');
+        if (textSpan) {
+            textSpan.textContent = loggedIn ? 'Go to Dashboard' : 'Explore Dashboard';
+        }
+    }
+}
+
+/**
  * Show the Landing Page view.
  */
 export function showLandingPage() {
     _isDashboardActive = false;
+
+    updateLandingAuthState();
 
     const landingEl = document.getElementById('landing-page-view');
     const dashboardEl = document.getElementById('app-dashboard-view');
@@ -100,15 +138,16 @@ export function showLandingPage() {
  * Protected: requires authentication.
  * @param {string} [sectionId='overview']
  */
-export function showDashboard(sectionId = 'overview') {
+export async function showDashboard(sectionId = 'overview') {
     // ── Authentication Check ──
     if (!isAuthenticated()) {
         showLandingPage();
         openAuthModal({
             tab: 'login',
-            onSuccess: () => {
-                reloadForUser();
-                showDashboard(sectionId);
+            onSuccess: async () => {
+                await reloadForUser();
+                updateLandingAuthState();
+                await showDashboard(sectionId);
             }
         });
         return;
@@ -116,9 +155,10 @@ export function showDashboard(sectionId = 'overview') {
 
     _isDashboardActive = true;
 
-    // Synchronize transactions & user display for active session
-    reloadForUser();
+    // Synchronize transactions & user display for active session from MongoDB
+    await reloadForUser();
     updateNavbarUserDisplay();
+    updateLandingAuthState();
 
     const landingEl = document.getElementById('landing-page-view');
     const dashboardEl = document.getElementById('app-dashboard-view');
@@ -222,15 +262,19 @@ function _handleRouteFromHash() {
         } else {
             showDashboard('anomaly-insights');
         }
-    } else if (hash.startsWith('#features') || hash.startsWith('#how-it-works')) {
-        // Let in-page anchor smooth scrolling work on landing page
-        if (!_isDashboardActive) {
-            const el = document.querySelector(hash);
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }
-    } else {
-        // Default route is the Landing Page
+    } else if (hash.startsWith('#features') || hash.startsWith('#how-it-works') || hash.startsWith('#why') || hash.startsWith('#pricing')) {
         showLandingPage();
+        const el = document.querySelector(hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else if (hash === '#landing') {
+        showLandingPage();
+    } else {
+        // Default route: route authenticated users straight to dashboard overview
+        if (isAuthenticated()) {
+            showDashboard('overview');
+        } else {
+            showLandingPage();
+        }
     }
 }
 
@@ -350,12 +394,12 @@ function _bindNavbarActions() {
     // Dropdown Logout Button
     const navbarLogoutBtn = document.getElementById('btn-navbar-logout');
     if (navbarLogoutBtn) {
-        navbarLogoutBtn.addEventListener('click', (e) => {
+        navbarLogoutBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (dropdown) dropdown.classList.remove('dropdown--show');
             if (profileBtn) profileBtn.classList.remove('active');
             logout();
-            reloadForUser();
+            await reloadForUser();
             resetAuthForms();
             showLandingPage();
         });
@@ -374,9 +418,9 @@ function _bindDashboardReturnActions() {
     // Logout button in dashboard sidebar → log out session and return to landing page
     const logoutBtn = document.querySelector('.btn-logout');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
             logout();
-            reloadForUser();
+            await reloadForUser();
             resetAuthForms();
             showLandingPage();
         });
