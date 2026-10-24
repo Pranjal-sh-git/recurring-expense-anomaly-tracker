@@ -21,6 +21,12 @@
 const ANOMALY_Z_THRESHOLD = 2;
 
 /**
+ * Minimum number of baseline transactions required in a category (excluding the evaluated transaction)
+ * to perform reliable statistical anomaly detection.
+ */
+const MIN_BASELINE_COUNT = 3;
+
+/**
  * Calculates arithmetic mean of an array of numeric values.
  * Safely handles empty arrays, invalid values, symbols, booleans, and non-numeric items.
  *
@@ -192,25 +198,22 @@ function calculateCategoryStats(transactions) {
 
 /**
  * Detects anomalies in a list of transactions by comparing each transaction
- * against other transactions in the same category using Z-Score statistical analysis.
+ * against other transactions in the same category using Leave-One-Out (self-excluding)
+ * Z-Score statistical analysis.
  *
- * Primary Anomaly Approach:
- * Transactions -> Group by Category -> Category Mean & Std Dev -> Transaction Z-Score -> Flag (|Z| >= threshold)
- *
- * Safely handles:
- * - Empty arrays and non-array inputs
- * - Single transactions and small sample sizes (< 2 valid items avoids false positives)
- * - Zero standard deviation (e.g., identical amounts)
- * - Missing or invalid categories (grouped under 'Uncategorized')
- * - Invalid or non-numeric amounts
- * - Preserves original transaction fields
- * - Pure function: does not mutate input objects or arrays
+ * Algorithm Rules:
+ * 1. Category-Wise Baseline: Groups expenses strictly by normalized category name.
+ * 2. Leave-One-Out Self-Exclusion: When evaluating transaction x_i, x_i is excluded from its category baseline.
+ * 3. Minimum Baseline Count: At least 3 other valid transactions (minBaselineCount = 3) are required to form a baseline.
+ * 4. Zero Standard Deviation: If baseline standard deviation is 0, avoids division by zero and false positives.
+ * 5. Outlier Flagging: Transactions with absolute Z-Score >= threshold (default 2) are flagged as anomalies.
  *
  * @param {Array<Object>} transactions - List of transaction objects.
- * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold (default: 2, absolute Z >= threshold flagged).
- * @returns {Array<Object>} New array of processed transaction objects with anomaly metadata.
+ * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold (default: 2).
+ * @param {number} [minBaselineCount=MIN_BASELINE_COUNT] - Minimum baseline count (default: 3).
+ * @returns {Array<Object>} Processed transaction objects with anomaly metadata.
  */
-function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD, minBaselineCount = MIN_BASELINE_COUNT) {
   if (!Array.isArray(transactions) || transactions.length === 0) {
     return [];
   }
@@ -219,10 +222,45 @@ function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
     ? Math.abs(threshold)
     : ANOMALY_Z_THRESHOLD;
 
-  // Compute category-level statistical baselines
-  const categoryStats = calculateCategoryStats(transactions);
+  const minBaseline = typeof minBaselineCount === 'number' && !isNaN(minBaselineCount) && isFinite(minBaselineCount) && minBaselineCount >= 0
+    ? minBaselineCount
+    : MIN_BASELINE_COUNT;
 
-  return transactions.map(transaction => {
+  // Group valid amounts per category with their original array indices for leave-one-out exclusion
+  const categoryValidMap = {};
+
+  transactions.forEach((tx, index) => {
+    if (!tx || typeof tx !== 'object') {
+      return;
+    }
+
+    const isInvalidAmount =
+      tx.amount === null ||
+      tx.amount === undefined ||
+      typeof tx.amount === 'symbol' ||
+      typeof tx.amount === 'boolean' ||
+      isNaN(Number(tx.amount)) ||
+      !isFinite(Number(tx.amount));
+
+    if (isInvalidAmount) {
+      return;
+    }
+
+    const category = tx.category && typeof tx.category === 'string' && tx.category.trim() !== ''
+      ? tx.category.trim()
+      : 'Uncategorized';
+
+    if (!categoryValidMap[category]) {
+      categoryValidMap[category] = [];
+    }
+
+    categoryValidMap[category].push({
+      index,
+      amount: Number(tx.amount)
+    });
+  });
+
+  return transactions.map((transaction, index) => {
     // Handle invalid transaction entries
     if (!transaction || typeof transaction !== 'object') {
       return {
@@ -248,51 +286,75 @@ function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
       !isFinite(Number(transaction.amount));
 
     if (isInvalidAmount) {
-      const catStats = categoryStats[category] || { mean: 0, standardDeviation: 0 };
       return {
         ...transaction,
         isAnomaly: false,
         zScore: 0,
-        categoryMean: catStats.mean || 0,
-        categoryStandardDeviation: catStats.standardDeviation || 0,
-        anomalyReason: null
-      };
-    }
-
-    const amount = Number(transaction.amount);
-    const stats = categoryStats[category];
-
-    // Insufficient data or zero variance check:
-    // When there are fewer than 2 valid comparable transactions in the category
-    // or standard deviation is 0, we avoid falsely flagging anomalies.
-    if (!stats || stats.count < 2 || stats.rawStandardDeviation === 0) {
-      return {
-        ...transaction,
-        isAnomaly: false,
-        zScore: 0,
-        categoryMean: stats ? stats.mean : amount,
+        categoryMean: 0,
         categoryStandardDeviation: 0,
         anomalyReason: null
       };
     }
 
-    // Calculate Z-Score relative to category mean and population standard deviation
-    const zScoreRaw = calculateZScore(amount, stats.rawMean, stats.rawStandardDeviation);
+    const amount = Number(transaction.amount);
+    const categoryEntries = categoryValidMap[category] || [];
+
+    // Leave-one-out self-exclusion: exclude current transaction from its baseline
+    const baselineAmounts = categoryEntries
+      .filter(entry => entry.index !== index)
+      .map(entry => entry.amount);
+
+    // Rule: Insufficient baseline data (< minBaseline other valid transactions)
+    if (baselineAmounts.length < minBaseline) {
+      const fallbackMean = baselineAmounts.length > 0
+        ? Number(calculateMean(baselineAmounts).toFixed(2))
+        : amount;
+
+      return {
+        ...transaction,
+        isAnomaly: false,
+        zScore: 0,
+        categoryMean: fallbackMean,
+        categoryStandardDeviation: 0,
+        anomalyReason: null
+      };
+    }
+
+    // Calculate baseline population mean and standard deviation
+    const baselineMeanRaw = calculateMean(baselineAmounts);
+    const baselineStdDevRaw = calculateStandardDeviation(baselineAmounts);
+    const baselineMean = Number(baselineMeanRaw.toFixed(2));
+    const baselineStdDev = Number(baselineStdDevRaw.toFixed(2));
+
+    // Rule: Zero standard deviation (identical amounts in baseline)
+    if (baselineStdDevRaw === 0) {
+      return {
+        ...transaction,
+        isAnomaly: false,
+        zScore: 0,
+        categoryMean: baselineMean,
+        categoryStandardDeviation: 0,
+        anomalyReason: null
+      };
+    }
+
+    // Rule: Calculate Z-Score relative to baseline
+    const zScoreRaw = calculateZScore(amount, baselineMeanRaw, baselineStdDevRaw);
     const zScore = Number(zScoreRaw.toFixed(2));
     const isAnomaly = Math.abs(zScoreRaw) >= numericThreshold;
 
     let anomalyReason = null;
     if (isAnomaly) {
       const direction = zScoreRaw > 0 ? 'higher' : 'lower';
-      anomalyReason = `Unusually ${direction} expense for "${category}" (₹${amount.toFixed(2)} vs category avg ₹${stats.mean.toFixed(2)}, Z-Score: ${zScore > 0 ? '+' : ''}${zScore.toFixed(2)})`;
+      anomalyReason = `Unusually ${direction} expense for "${category}" (₹${amount.toFixed(2)} vs category avg ₹${baselineMean.toFixed(2)}, Z-Score: ${zScore > 0 ? '+' : ''}${zScore.toFixed(2)})`;
     }
 
     return {
       ...transaction,
       isAnomaly,
       zScore,
-      categoryMean: stats.mean,
-      categoryStandardDeviation: stats.standardDeviation,
+      categoryMean: baselineMean,
+      categoryStandardDeviation: baselineStdDev,
       anomalyReason
     };
   });
@@ -304,9 +366,10 @@ function detectAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
  *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
+ * @param {number} [minBaselineCount=MIN_BASELINE_COUNT] - Minimum baseline count.
  * @returns {number} The count of anomalous transactions.
  */
-function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD, minBaselineCount = MIN_BASELINE_COUNT) {
   if (!Array.isArray(transactions) || transactions.length === 0) {
     return 0;
   }
@@ -317,7 +380,7 @@ function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
 
   const analyzedList = hasAnomalyFlags
     ? transactions
-    : detectAnomalies(transactions, threshold);
+    : detectAnomalies(transactions, threshold, minBaselineCount);
 
   return analyzedList.filter(t => Boolean(t?.isAnomaly)).length;
 }
@@ -328,9 +391,10 @@ function countAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
  *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
+ * @param {number} [minBaselineCount=MIN_BASELINE_COUNT] - Minimum baseline count.
  * @returns {Array<Object>} Array containing only the anomalous transactions.
  */
-function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD, minBaselineCount = MIN_BASELINE_COUNT) {
   if (!Array.isArray(transactions) || transactions.length === 0) {
     return [];
   }
@@ -341,7 +405,7 @@ function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
 
   const analyzedList = hasAnomalyFlags
     ? transactions
-    : detectAnomalies(transactions, threshold);
+    : detectAnomalies(transactions, threshold, minBaselineCount);
 
   return analyzedList.filter(t => Boolean(t?.isAnomaly));
 }
@@ -351,6 +415,7 @@ function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
  *
  * @param {Array<Object>} transactions - List of transaction objects.
  * @param {number} [threshold=ANOMALY_Z_THRESHOLD] - Optional Z-Score threshold.
+ * @param {number} [minBaselineCount=MIN_BASELINE_COUNT] - Minimum baseline count.
  * @returns {{
  *   totalTransactions: number,
  *   examinedCount: number,
@@ -364,7 +429,7 @@ function getAnomalies(transactions, threshold = ANOMALY_Z_THRESHOLD) {
  *   categoryBreakdown: Object.<string, { count: number, totalAnomalousAmount: number, mean: number, standardDeviation: number }>
  * }}
  */
-function getAnomalySummary(transactions, threshold = ANOMALY_Z_THRESHOLD) {
+function getAnomalySummary(transactions, threshold = ANOMALY_Z_THRESHOLD, minBaselineCount = MIN_BASELINE_COUNT) {
   if (!Array.isArray(transactions) || transactions.length === 0) {
     return {
       totalTransactions: 0,
@@ -380,7 +445,7 @@ function getAnomalySummary(transactions, threshold = ANOMALY_Z_THRESHOLD) {
     };
   }
 
-  const analyzedList = detectAnomalies(transactions, threshold);
+  const analyzedList = detectAnomalies(transactions, threshold, minBaselineCount);
   const anomalies = analyzedList.filter(t => Boolean(t.isAnomaly));
   const anomalyCount = anomalies.length;
   const totalTransactions = analyzedList.length;
@@ -440,6 +505,7 @@ function getAnomalySummary(transactions, threshold = ANOMALY_Z_THRESHOLD) {
 
 module.exports = {
   ANOMALY_Z_THRESHOLD,
+  MIN_BASELINE_COUNT,
   calculateMean,
   calculateStandardDeviation,
   calculateZScore,
@@ -455,3 +521,4 @@ module.exports = {
   filterAnomalies: getAnomalies,
   getAnomalySummary
 };
+

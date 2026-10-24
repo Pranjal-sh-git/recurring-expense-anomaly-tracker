@@ -243,8 +243,17 @@ async function getAnomalies(req, res, next) {
       }
     }
 
+    // Parse custom minBaseline if provided
+    let minBaseline = anomalyService.MIN_BASELINE_COUNT;
+    if (req.query.minBaseline !== undefined) {
+      const parsedMin = parseInt(req.query.minBaseline, 10);
+      if (!isNaN(parsedMin) && parsedMin >= 0) {
+        minBaseline = parsedMin;
+      }
+    }
+
     // Run pure numerical anomaly detection (read-time only, never saved to MongoDB)
-    const analyzed = anomalyService.detectAnomalies(transactions || [], threshold);
+    const analyzed = anomalyService.detectAnomalies(transactions || [], threshold, minBaseline);
 
     // Determine flagged-only vs all rows:
     // Default is flagged-only as requested by specification.
@@ -271,7 +280,8 @@ async function getAnomalies(req, res, next) {
         count: formattedAnomalies.length,
         examinedCount: (transactions || []).length,
         flaggedOnly: isFlaggedOnly,
-        threshold
+        threshold,
+        minBaseline
       }
     });
   } catch (err) {
@@ -296,6 +306,7 @@ async function getAnomalies(req, res, next) {
  * - `from` or `startDate`: ISO date filter
  * - `to` or `endDate`: ISO date filter
  * - `threshold`: Custom Z-score threshold (default: 2)
+ * - `minBaseline`: Custom minimum baseline count (default: 3)
  */
 async function getAnomalySummary(req, res, next) {
   try {
@@ -334,8 +345,17 @@ async function getAnomalySummary(req, res, next) {
       }
     }
 
+    // Parse custom minBaseline if provided
+    let minBaseline = anomalyService.MIN_BASELINE_COUNT;
+    if (req.query.minBaseline !== undefined) {
+      const parsedMin = parseInt(req.query.minBaseline, 10);
+      if (!isNaN(parsedMin) && parsedMin >= 0) {
+        minBaseline = parsedMin;
+      }
+    }
+
     // Generate comprehensive summary via pure numerical service
-    const rawSummary = anomalyService.getAnomalySummary(transactions || [], threshold);
+    const rawSummary = anomalyService.getAnomalySummary(transactions || [], threshold, minBaseline);
 
     // Format individual anomalies in summary
     const formattedAnomalies = (rawSummary.anomalies || []).map(formatTransactionOutput);
@@ -351,7 +371,8 @@ async function getAnomalySummary(req, res, next) {
       severityBreakdown: rawSummary.severityBreakdown,
       categoryBreakdown: rawSummary.categoryBreakdown,
       anomalies: formattedAnomalies,
-      threshold
+      threshold,
+      minBaseline
     };
 
     return res.status(200).json({
