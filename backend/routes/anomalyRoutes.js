@@ -8,10 +8,9 @@
  * - GET /api/anomalies/summary  : Retrieve statistical anomaly summary (examined count, anomaly count, category/severity breakdowns)
  * 
  * Shared Conventions & Security:
- * - Protected by `protect` authentication middleware (supplied by Member 1 / Pranjal).
- * - Enforces data isolation via `req.user.id`.
- * - If auth middleware is not yet integrated on this branch, gracefully falls back to contract validation
- *   and explicitly notes unverified integration.
+ * - Protected by canonical `protect` authentication middleware (from ../middleware/authMiddleware).
+ * - Enforces data isolation strictly via authenticated `req.user.id`.
+ * - Never bypasses JWT verification based on req.user alone.
  */
 
 'use strict';
@@ -19,7 +18,6 @@
 const express = require('express');
 const router = express.Router();
 const anomalyController = require('../controllers/anomalyController');
-
 const { protect } = require('../middleware/authMiddleware');
 
 // ─── Route Definitions ─────────────────────────────────────────────────────────
