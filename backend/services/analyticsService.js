@@ -16,7 +16,7 @@ try {
  * Safely parse and validate a numeric amount from a transaction object or raw value.
  * Matches Phase 1 frontend extractValidAmount semantics.
  *
- * @param {Object} transaction - Transaction object or numeric amount.
+ * @param {Object|number|string} transaction - Transaction object or numeric amount.
  * @returns {number} Valid numeric amount (>= 0), or 0 if invalid.
  */
 function extractValidAmount(transaction) {
@@ -178,6 +178,83 @@ function calculateTotalTransactions(transactions) {
 }
 
 /**
+ * Calculates arithmetic mean of an array of numeric values or transaction objects.
+ * Safely handles empty arrays, invalid values, symbols, and non-numeric items.
+ *
+ * @param {Array<number|string|Object>} values - Array of numbers or transaction objects.
+ * @returns {number} Arithmetic mean rounded to 2 decimal places, or 0 if empty/invalid.
+ */
+function calculateMean(values) {
+  if (!Array.isArray(values) || values.length === 0) {
+    return 0;
+  }
+
+  const validNumbers = values
+    .map(v => {
+      if (v !== null && typeof v === 'object') {
+        return extractValidAmount(v);
+      }
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[^0-9.-]+/g, '');
+        const num = Number(cleaned);
+        return (!isNaN(num) && isFinite(num) && num >= 0) ? num : NaN;
+      }
+      const num = Number(v);
+      return (!isNaN(num) && isFinite(num) && num >= 0) ? num : NaN;
+    })
+    .filter(v => !isNaN(v));
+
+  if (validNumbers.length === 0) {
+    return 0;
+  }
+
+  const sum = validNumbers.reduce((acc, curr) => acc + curr, 0);
+  return Number((sum / validNumbers.length).toFixed(2));
+}
+
+/**
+ * Calculates population standard deviation of an array of numbers or transaction objects.
+ * Formula: sqrt(sum((x - mean)^2) / N)
+ * Safely handles empty arrays, single-item arrays, zero-variance, and invalid values.
+ *
+ * @param {Array<number|string|Object>} values - Array of numbers or transaction objects.
+ * @returns {number} Population standard deviation rounded to 2 decimal places, or 0 if <= 1 items.
+ */
+function calculateStandardDeviation(values) {
+  if (!Array.isArray(values) || values.length <= 1) {
+    return 0;
+  }
+
+  const validNumbers = values
+    .map(v => {
+      if (v !== null && typeof v === 'object') {
+        return extractValidAmount(v);
+      }
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[^0-9.-]+/g, '');
+        const num = Number(cleaned);
+        return (!isNaN(num) && isFinite(num) && num >= 0) ? num : NaN;
+      }
+      const num = Number(v);
+      return (!isNaN(num) && isFinite(num) && num >= 0) ? num : NaN;
+    })
+    .filter(v => !isNaN(v));
+
+  if (validNumbers.length <= 1) {
+    return 0;
+  }
+
+  const mean = validNumbers.reduce((acc, curr) => acc + curr, 0) / validNumbers.length;
+  const squaredDifferencesSum = validNumbers.reduce(
+    (acc, curr) => acc + Math.pow(curr - mean, 2),
+    0
+  );
+  const variance = squaredDifferencesSum / validNumbers.length;
+
+  return Number(Math.sqrt(variance).toFixed(2));
+}
+
+/**
  * Calculate spending totals grouped by category.
  * Preserves Phase 1 calculateCategoryTotals semantics.
  *
@@ -277,7 +354,8 @@ function calculateDailyTotals(transactions) {
  * - transaction count
  * - highest-spending category
  * - recurring count
- * - average transaction size
+ * - average transaction size / mean
+ * - standard deviation
  *
  * @param {Array<Object>} transactions - List of transactions.
  * @returns {Object} Summary metrics object. Never NaN.
@@ -293,8 +371,13 @@ function generateSummaryMetrics(transactions) {
       topCategory: null,
       recurringCount: 0,
       recurringSpend: 0,
+      recurringTotal: 0,
       averageTransactionSize: 0,
-      averageAmount: 0
+      averageTransaction: 0,
+      averageAmount: 0,
+      average: 0,
+      mean: 0,
+      standardDeviation: 0
     };
   }
 
@@ -307,6 +390,7 @@ function generateSummaryMetrics(transactions) {
   const recurringCount = recurringTxs.length;
 
   const averageTransactionSize = count > 0 ? Number((total / count).toFixed(2)) : 0;
+  const standardDeviation = calculateStandardDeviation(transactions);
 
   return {
     totalSpending: total,
@@ -317,8 +401,36 @@ function generateSummaryMetrics(transactions) {
     topCategory: topCat ? { category: topCat.category, amount: topCat.amount, total: topCat.total } : null,
     recurringCount,
     recurringSpend,
+    recurringTotal: recurringSpend,
     averageTransactionSize,
-    averageAmount: averageTransactionSize
+    averageTransaction: averageTransactionSize,
+    averageAmount: averageTransactionSize,
+    average: averageTransactionSize,
+    mean: averageTransactionSize,
+    standardDeviation
+  };
+}
+
+/**
+ * Generate dashboard summary compatible with frontend analytics dashboard.
+ *
+ * @param {Array<Object>} transactions - List of transactions.
+ * @returns {Object} Dashboard summary.
+ */
+function generateDashboardSummary(transactions) {
+  const summary = generateSummaryMetrics(transactions);
+  return {
+    totalExpenses: summary.totalExpenses,
+    totalSpending: summary.totalSpending,
+    totalTransactions: summary.totalTransactions,
+    transactionCount: summary.transactionCount,
+    highestSpendingCategory: summary.highestSpendingCategory,
+    averageTransactionSize: summary.averageTransactionSize,
+    averageAmount: summary.averageAmount,
+    average: summary.average,
+    standardDeviation: summary.standardDeviation,
+    recurringSpend: summary.recurringSpend,
+    recurringCount: summary.recurringCount
   };
 }
 
@@ -328,6 +440,8 @@ function generateSummaryMetrics(transactions) {
  * - category-wise amount totals
  * - transaction counts
  * - percentage distribution
+ * - category-wise average transaction value
+ * - category-wise standard deviation
  *
  * @param {Array<Object>} transactions - List of transactions.
  * @returns {Object} Category analytics object.
@@ -339,18 +453,30 @@ function calculateCategoryMetrics(transactions) {
       totals: {},
       counts: {},
       percentages: {},
+      averages: {},
+      standardDeviations: {},
       totalSpending: 0,
       totalExpenses: 0,
       totalCount: 0,
       totalTransactions: 0,
+      averageTransactionSize: 0,
+      standardDeviation: 0,
       breakdown: [],
       labels: [],
-      data: []
+      data: [],
+      datasets: [
+        {
+          label: 'Spending by Category',
+          data: []
+        }
+      ]
     };
   }
 
   const totalSpending = calculateTotalExpenses(transactions);
   const totalCount = calculateTotalTransactions(transactions);
+  const overallAvg = totalCount > 0 ? Number((totalSpending / totalCount).toFixed(2)) : 0;
+  const overallStdDev = calculateStandardDeviation(transactions);
 
   const catMap = {};
 
@@ -361,10 +487,11 @@ function calculateCategoryMetrics(transactions) {
     const cat = extractCategory(t);
     const amt = extractValidAmount(t);
     if (!catMap[cat]) {
-      catMap[cat] = { total: 0, count: 0 };
+      catMap[cat] = { total: 0, count: 0, amounts: [] };
     }
     catMap[cat].total += amt;
     catMap[cat].count += 1;
+    catMap[cat].amounts.push(amt);
   }
 
   const categoryNames = Object.keys(catMap);
@@ -374,6 +501,8 @@ function calculateCategoryMetrics(transactions) {
   const totals = {};
   const counts = {};
   const percentages = {};
+  const averages = {};
+  const standardDeviations = {};
   const categories = [];
 
   for (const cat of categoryNames) {
@@ -381,17 +510,24 @@ function calculateCategoryMetrics(transactions) {
     const roundedTotal = Number(rawTotal.toFixed(2));
     const count = catMap[cat].count;
     const pct = totalSpending > 0 ? Number(((rawTotal / totalSpending) * 100).toFixed(2)) : 0;
+    const avg = count > 0 ? Number((rawTotal / count).toFixed(2)) : 0;
+    const stdDev = calculateStandardDeviation(catMap[cat].amounts);
 
     totals[cat] = roundedTotal;
     counts[cat] = count;
     percentages[cat] = pct;
+    averages[cat] = avg;
+    standardDeviations[cat] = stdDev;
 
     categories.push({
       category: cat,
       total: roundedTotal,
       amount: roundedTotal,
       count,
-      percentage: pct
+      percentage: pct,
+      average: avg,
+      mean: avg,
+      standardDeviation: stdDev
     });
   }
 
@@ -400,13 +536,23 @@ function calculateCategoryMetrics(transactions) {
     totals,
     counts,
     percentages,
+    averages,
+    standardDeviations,
     totalSpending,
     totalExpenses: totalSpending,
     totalCount,
     totalTransactions: totalCount,
+    averageTransactionSize: overallAvg,
+    standardDeviation: overallStdDev,
     breakdown: categories,
     labels: categories.map(c => c.category),
-    data: categories.map(c => c.total)
+    data: categories.map(c => c.total),
+    datasets: [
+      {
+        label: 'Spending by Category',
+        data: categories.map(c => c.total)
+      }
+    ]
   };
 }
 
@@ -426,6 +572,12 @@ function calculateTrends(transactions) {
       timeline: [],
       labels: [],
       data: [],
+      datasets: [
+        {
+          label: 'Daily Spending',
+          data: []
+        }
+      ],
       totalSpending: 0,
       totalExpenses: 0,
       totalCount: 0,
@@ -481,6 +633,12 @@ function calculateTrends(transactions) {
     timeline: trends,
     labels: trends.map(t => t.date),
     data: trends.map(t => t.total),
+    datasets: [
+      {
+        label: 'Daily Spending',
+        data: trends.map(t => t.total)
+      }
+    ],
     totalSpending,
     totalExpenses: totalSpending,
     totalCount,
@@ -519,6 +677,20 @@ function calculateRecurringTotals(transactions) {
         count: 0,
         percentage: 0
       },
+      oneOff: {
+        amount: 0,
+        total: 0,
+        count: 0,
+        percentage: 0
+      },
+      recurringSpend: 0,
+      recurringTotal: 0,
+      recurringCount: 0,
+      recurringPct: 0,
+      oneOffSpend: 0,
+      oneOffTotal: 0,
+      oneOffCount: 0,
+      oneOffPct: 0,
       totalSpending: 0,
       totalExpenses: 0,
       totalCount: 0,
@@ -572,6 +744,15 @@ function calculateRecurringTotals(transactions) {
     recurring: recObj,
     nonRecurring: nonRecObj,
     nonrecurring: nonRecObj,
+    oneOff: nonRecObj,
+    recurringSpend: roundedRecAmt,
+    recurringTotal: roundedRecAmt,
+    recurringCount: recurringCount,
+    recurringPct: recPct,
+    oneOffSpend: roundedNonRecAmt,
+    oneOffTotal: roundedNonRecAmt,
+    oneOffCount: nonRecurringCount,
+    oneOffPct: nonRecPct,
     totalSpending,
     totalExpenses: totalSpending,
     totalCount,
@@ -597,14 +778,20 @@ async function fetchTransactions({ userId, from, to, Model = Transaction }) {
     throw error;
   }
 
+  if (!userId) {
+    const error = new Error('User ID is required to fetch transactions');
+    error.statusCode = 400;
+    throw error;
+  }
+
   const query = {};
 
   // Support both 'user' and 'userId' field naming conventions in schema
   if (Model.schema && Model.schema.paths) {
-    if (Model.schema.paths.userId) {
-      query.userId = userId;
-    } else if (Model.schema.paths.user) {
+    if (Model.schema.paths.user) {
       query.user = userId;
+    } else if (Model.schema.paths.userId) {
+      query.userId = userId;
     } else {
       query.$or = [{ user: userId }, { userId: userId }];
     }
@@ -627,13 +814,27 @@ async function fetchTransactions({ userId, from, to, Model = Transaction }) {
 
 /**
  * Resolves transactions either from database or from provided transaction fixtures.
+ * Enforces user isolation on in-memory fixtures when userId is provided.
  *
  * @param {Object} options
  * @returns {Promise<Array<Object>>}
  */
 async function resolveTransactions({ userId, from, to, transactions, Model = Transaction } = {}) {
   if (Array.isArray(transactions)) {
-    return filterTransactionsByDate(transactions, from, to);
+    let scoped = transactions;
+    if (userId) {
+      const hasAnyUserTags = transactions.some(t => t && (t.user !== undefined || t.userId !== undefined));
+      if (hasAnyUserTags) {
+        scoped = transactions.filter(t => {
+          if (!t || typeof t !== 'object') return false;
+          const txUser = t.user !== undefined ? t.user : t.userId;
+          if (txUser === undefined || txUser === null) return false;
+          const txUserStr = typeof txUser === 'object' && txUser._id ? txUser._id.toString() : txUser.toString();
+          return txUserStr === userId.toString();
+        });
+      }
+    }
+    return filterTransactionsByDate(scoped, from, to);
   }
   return await fetchTransactions({ userId, from, to, Model });
 }
@@ -681,7 +882,12 @@ module.exports = {
   calculateCategoryTotals,
   getHighestSpendingCategory,
   calculateDailyTotals,
+  calculateMean,
+  calculateAverage: calculateMean,
+  calculateStandardDeviation,
   generateSummaryMetrics,
+  generateDashboardSummary,
+  getDashboardSummary: generateDashboardSummary,
   calculateCategoryMetrics,
   calculateTrends,
   calculateRecurringTotals,
