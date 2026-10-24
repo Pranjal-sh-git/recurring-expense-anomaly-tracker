@@ -18,6 +18,7 @@ const protect = async (req, res, next) => {
 
     // Check for standard Authorization: Bearer <token>
     if (
+      req.headers &&
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer ')
     ) {
@@ -28,7 +29,7 @@ const protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Not authorized, token required'
+        message: 'Authentication required. Authorization token missing or invalid.'
       });
     }
 
@@ -92,6 +93,8 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  protect
-};
+// Support both destructured import ({ protect }) and direct import (protect)
+protect.protect = protect;
+protect.default = protect;
+
+module.exports = protect;

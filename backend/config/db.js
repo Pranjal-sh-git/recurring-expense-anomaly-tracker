@@ -1,4 +1,13 @@
+require('dotenv').config();
+const dns = require('node:dns');
 const mongoose = require('mongoose');
+
+// Configure reliable DNS servers to resolve MongoDB Atlas SRV records across all network environments
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (_) {
+  // Gracefully fallback to default system DNS if restricted
+}
 
 /**
  * Connect to MongoDB database instance using Mongoose.
@@ -14,7 +23,8 @@ const connectDB = async () => {
     console.log(`[Database] MongoDB connected successfully: ${conn.connection.host}`);
     return conn;
   } catch (error) {
-    console.error(`[Database Error] Failed to connect to MongoDB: ${error.message}`);
+    const safeMsg = (error.message || '').replace(/:\/\/[^@\s]+@/, '://***:***@');
+    console.error(`[Database Error] Failed to connect to MongoDB: ${safeMsg}`);
     // In production or strict environments, exit process on database failure
     if (process.env.NODE_ENV === 'production') {
       process.exit(1);
