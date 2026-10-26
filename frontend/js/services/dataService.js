@@ -157,7 +157,10 @@ export async function importTransactionsApi(transactions) {
     }));
 
     const response = await post('/api/transactions/import', { transactions: cleanedBatch });
-    return response?.data || [];
+    const data = response?.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.transactions)) return data.transactions;
+    return [];
 }
 
 // ─── LocalStorage Cache Fallback API ──────────────────────────────────────────

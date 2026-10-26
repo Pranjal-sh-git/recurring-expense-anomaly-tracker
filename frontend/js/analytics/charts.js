@@ -649,8 +649,11 @@ export function updateAllCharts(transactions, config = {}) {
   const categoryTarget = config.categoryContainer || 'category-chart-container';
   const dailyTarget = config.dailyContainer || 'daily-chart-container';
 
-  const categoryChart = renderCategorySpendingChart(categoryTarget, transactions, config.categoryOptions);
-  const dailyChart = renderDailySpendingChart(dailyTarget, transactions, config.dailyOptions);
+  const categoryInput = config.categoriesData || transactions;
+  const dailyInput = config.trendsData || transactions;
+
+  const categoryChart = renderCategorySpendingChart(categoryTarget, categoryInput, config.categoryOptions);
+  const dailyChart = renderDailySpendingChart(dailyTarget, dailyInput, config.dailyOptions);
 
   return {
     categoryChart,

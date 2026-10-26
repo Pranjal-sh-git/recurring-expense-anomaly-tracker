@@ -334,7 +334,8 @@ export async function loadDemoData(demoTransactions, append = false) {
     if (isAuthenticated()) {
         try {
             const imported = await importTransactionsApi(accepted);
-            const formattedList = (Array.isArray(imported) ? imported : []).map(_formatTransaction);
+            const rawList = Array.isArray(imported) ? imported : (imported?.transactions || []);
+            const formattedList = rawList.map(_formatTransaction);
 
             if (append) {
                 transactions.push(...formattedList);

@@ -36,31 +36,32 @@ import { initCSVImport }                                       from './ui/csvImp
 import { initEditModal, openEditModal, closeEditModal,
          showEditModalError, showEditModalToast }              from './ui/editTransactionModal.js';
 
+import { fetchAllDashboardAnalytics }                           from './services/analyticsApiClient.js';
+import { getActiveDateRange }                                      from './ui/dateRangePicker.js';
+
 // ─── Core refresh cycle ───────────────────────────────────────────────────────
 
 /**
  * Re-render the transaction table with current filter settings and active date range.
+ * @param {Array<object>} [enrichedTransactions] - Optional transactions enriched with backend anomalies.
  */
-function renderFilteredTable() {
-    const raw          = getTransactions();
-    const transactions = filterTransactionsByDate(raw);
-    const analyzed     = detectAnomalies(transactions);
-    const filtered     = applyFilters(analyzed);
+function renderFilteredTable(enrichedTransactions = null) {
+    const raw = enrichedTransactions || getTransactions();
+    const transactions = enrichedTransactions ? raw : filterTransactionsByDate(raw);
+    const analyzed = enrichedTransactions ? transactions : detectAnomalies(transactions);
+    const filtered = applyFilters(analyzed);
     renderTransactions(filtered);
 }
 
 /**
- * Refresh the full UI with the latest store state and active date range.
- * Called after every add / delete, date range change, and once on initial load.
+ * Fallback local rendering for unauthenticated/guest sessions or offline operation.
+ * @param {Array<object>} transactions
  */
-function refreshApp() {
-    const raw          = getTransactions();                        // raw from store
-    const transactions = filterTransactionsByDate(raw);           // filtered by navbar date range
-    const analyzed     = detectAnomalies(transactions);           // adds isAnomaly + zScore
-    const summary      = generateDashboardSummary(transactions);  // totals / category
-    const anomalyCount = countAnomalies(analyzed);                // integer count
+function _renderFallbackApp(transactions) {
+    const analyzed     = detectAnomalies(transactions);
+    const summary      = generateDashboardSummary(transactions);
+    const anomalyCount = countAnomalies(analyzed);
 
-    // ── Overview metric cards ──
     updateDashboard({
         totalExpenses:     formatCurrency(summary.totalExpenses),
         totalTransactions: summary.totalTransactions,
@@ -68,24 +69,124 @@ function refreshApp() {
         highestCategory:   summary.highestSpendingCategory ?? '--',
     }, transactions);
 
-    // ── Recurring count card + sidebar anomaly mirror ──
     updateRecurringCount(transactions);
-
-    // ── Recent transactions feed (Overview section) ──
     updateRecentTransactions(analyzed);
-
-    // ── Analytics section ──
     updateAnalyticsView(transactions, analyzed);
-
-    // ── Anomaly Insights section ──
     updateAnomalyView(transactions, analyzed);
-
-    // ── Full transaction table (Transactions section) ──
-    // Table receives filtered + anomaly-enriched objects so badges render correctly.
-    renderFilteredTable();
-
-    // ── Charts (Overview section containers) ──
+    renderFilteredTable(analyzed);
     updateAllCharts(transactions);
+}
+
+/**
+ * Toggle visual loading state during backend asynchronous analytics fetch.
+ * @param {boolean} isLoading
+ * @param {string|null} [errorMsg]
+ */
+function _setAnalyticsLoadingState(isLoading, errorMsg = null) {
+    const metricsGrid = document.querySelector('.metrics-grid');
+    if (metricsGrid) {
+        metricsGrid.classList.toggle('metrics-grid--loading', isLoading);
+    }
+    if (errorMsg) {
+        console.warn('[KharchaSense Analytics API Warning]:', errorMsg);
+    }
+}
+
+/**
+ * Refresh the full UI with authoritative data from the backend.
+ * Fetches analytics summary, categories, trends, recurring, and anomalies from Express APIs.
+ * Called after every add / edit / delete, CSV import, date range change, and on initial boot.
+ */
+async function refreshApp() {
+    const raw = getTransactions();
+    const dateRange = typeof getActiveDateRange === 'function' ? getActiveDateRange() : null;
+    const transactions = filterTransactionsByDate(raw);
+
+    if (isAuthenticated()) {
+        try {
+            _setAnalyticsLoadingState(true);
+            const backendData = await fetchAllDashboardAnalytics(dateRange);
+
+            // Guard against race conditions: if this response was superseded by a newer request, drop it
+            if (backendData && backendData.isCurrent === false) {
+                return;
+            }
+
+            if (backendData) {
+                const { summary, categories, trends, recurring, anomalies, anomalySummary } = backendData;
+
+                // 1. Map backend-flagged anomalies onto transactions
+                const backendAnomalyList = anomalies?.anomalies || [];
+                const anomalyMap = new Map();
+                backendAnomalyList.forEach(a => {
+                    const idStr = String(a.id || a._id || '');
+                    if (idStr) anomalyMap.set(idStr, a);
+                });
+
+                const analyzed = transactions.map(t => {
+                    const txId = String(t.id || t._id || '');
+                    const matched = txId ? anomalyMap.get(txId) : null;
+                    if (matched) {
+                        return {
+                            ...t,
+                            isAnomaly: true,
+                            zScore: matched.zScore,
+                            anomalyReason: matched.anomalyReason,
+                            categoryMean: matched.categoryMean
+                        };
+                    }
+                    return {
+                        ...t,
+                        isAnomaly: false,
+                        zScore: 0
+                    };
+                });
+
+                const anomalyCount = anomalySummary?.anomalyCount ?? backendAnomalyList.length;
+
+                // 2. Overview metric cards (using backend-calculated summary)
+                updateDashboard({
+                    totalExpenses:     formatCurrency(summary?.totalExpenses ?? summary?.totalSpending ?? 0),
+                    totalTransactions: summary?.totalTransactions ?? summary?.transactionCount ?? 0,
+                    anomaliesDetected: anomalyCount,
+                    highestCategory:   summary?.highestSpendingCategory ?? '--',
+                }, transactions, backendData);
+
+                // 3. Recurring count (using backend-calculated recurring analytics)
+                if (recurring) {
+                    updateRecurringCount(transactions, recurring);
+                } else {
+                    updateRecurringCount(transactions);
+                }
+
+                // 4. Recent transactions feed
+                updateRecentTransactions(analyzed);
+
+                // 5. Analytics section (passing backend summary, categories, trends, recurring)
+                updateAnalyticsView(transactions, analyzed, { summary, categories, trends, recurring });
+
+                // 6. Anomaly Insights section (passing backend anomalies and statistical anomalySummary)
+                updateAnomalyView(transactions, analyzed, { anomalies, anomalySummary });
+
+                // 7. Full transaction table with backend anomaly flags
+                renderFilteredTable(analyzed);
+
+                // 8. Charts (passing backend pre-computed category & daily trend distributions)
+                updateAllCharts(transactions, {
+                    categoriesData: categories,
+                    trendsData: trends
+                });
+
+                _setAnalyticsLoadingState(false);
+                return;
+            }
+        } catch (apiError) {
+            _setAnalyticsLoadingState(false, apiError.message);
+        }
+    }
+
+    // Fallback for guest mode or offline sessions
+    _renderFallbackApp(transactions);
 }
 
 // ─── Event handlers ───────────────────────────────────────────────────────────

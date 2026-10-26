@@ -124,7 +124,7 @@ export function updateDashboard({
     totalTransactions,
     anomaliesDetected,
     highestCategory,
-} = {}, filteredTransactions = null) {
+} = {}, filteredTransactions = null, backendData = null) {
     const transactions = Array.isArray(filteredTransactions) ? filteredTransactions : getTransactions();
 
     if (totalExpenses     !== undefined) {
@@ -175,19 +175,26 @@ export function updateDashboard({
     _updateMetricComparisons(transactions);
 
     // Update secondary overview insight cards
-    _updateOverviewRecurring(transactions);
-    _updateOverviewSummary(transactions);
+    _updateOverviewRecurring(transactions, backendData?.recurring);
+    _updateOverviewSummary(transactions, backendData?.summary, backendData?.anomalySummary);
 }
 
 /**
  * Count transactions flagged as recurring and update the recurring-count card.
  * @param {Array<object>} transactions - Raw transaction array from the store.
+ * @param {object} [backendRecurring] - Optional pre-computed backend recurring metrics.
  */
-export function updateRecurringCount(transactions) {
-    if (!Array.isArray(transactions)) return;
-    const recurringTxs = transactions.filter(t => Boolean(t.recurring));
-    const count = recurringTxs.length;
-    const total = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+export function updateRecurringCount(transactions, backendRecurring = null) {
+    let count, total;
+    if (backendRecurring && (backendRecurring.recurring || backendRecurring.recurringSpend !== undefined)) {
+        total = Number(backendRecurring.recurring?.total ?? backendRecurring.recurringSpend ?? 0);
+        count = Number(backendRecurring.recurring?.count ?? backendRecurring.recurringCount ?? 0);
+    } else {
+        if (!Array.isArray(transactions)) return;
+        const recurringTxs = transactions.filter(t => Boolean(t.recurring));
+        count = recurringTxs.length;
+        total = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    }
     
     // Set the amount as value
     setText(ELEMENT_IDS.recurringCount, formatCurrency(total));
@@ -440,7 +447,7 @@ function _buildRecentItem(tx) {
 /**
  * Updates the Recurring vs One-off card on the Overview dashboard.
  */
-function _updateOverviewRecurring(transactions) {
+function _updateOverviewRecurring(transactions, backendRecurring = null) {
     const el = document.getElementById('overview-recurring-card');
     if (!el) return;
 
@@ -470,13 +477,22 @@ function _updateOverviewRecurring(transactions) {
         return;
     }
 
-    const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const recurringTxs = transactions.filter(t => Boolean(t.recurring));
-    const recurringSpend = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const oneOffSpend = Math.max(0, total - recurringSpend);
+    let recPct, oneOffPct, recurringSpend, oneOffSpend;
 
-    const recPct = total > 0 ? (recurringSpend / total) * 100 : 0;
-    const oneOffPct = total > 0 ? (oneOffSpend / total) * 100 : 0;
+    if (backendRecurring && (backendRecurring.recurring || backendRecurring.recurringSpend !== undefined)) {
+        recPct = Number(backendRecurring.recurring?.percentage ?? backendRecurring.recurringPct ?? 0);
+        oneOffPct = Number(backendRecurring.nonRecurring?.percentage ?? backendRecurring.oneOffPct ?? 0);
+        recurringSpend = Number(backendRecurring.recurring?.total ?? backendRecurring.recurringSpend ?? 0);
+        oneOffSpend = Number(backendRecurring.nonRecurring?.total ?? backendRecurring.oneOffSpend ?? 0);
+    } else {
+        const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const recurringTxs = transactions.filter(t => Boolean(t.recurring));
+        recurringSpend = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        oneOffSpend = Math.max(0, total - recurringSpend);
+
+        recPct = total > 0 ? (recurringSpend / total) * 100 : 0;
+        oneOffPct = total > 0 ? (oneOffSpend / total) * 100 : 0;
+    }
 
     el.innerHTML = `
         <div class="insight-card-header">
@@ -505,7 +521,7 @@ function _updateOverviewRecurring(transactions) {
 /**
  * Updates the Monthly Summary card on the Overview dashboard.
  */
-function _updateOverviewSummary(transactions) {
+function _updateOverviewSummary(transactions, backendSummary = null, backendAnomalySummary = null) {
     const el = document.getElementById('overview-summary-card');
     if (!el) return;
 
@@ -537,22 +553,39 @@ function _updateOverviewSummary(transactions) {
         return;
     }
 
-    const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const count = transactions.length;
-    const avgAmount = count > 0 ? total / count : 0;
+    let avgAmount, totalCategoriesCount, anomalyRateStr, anomalyCount;
+    let highestExpenseCategory = '--';
+    let highestExpenseAmt = '₹0.00';
 
     const highestTx = [...transactions].sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))[0];
-    const highestExpenseCategory = highestTx ? highestTx.category : '--';
-    const highestExpenseAmt = highestTx ? formatCurrency(highestTx.amount) : '₹0.00';
+    if (highestTx) {
+        highestExpenseCategory = highestTx.category;
+        highestExpenseAmt = formatCurrency(highestTx.amount);
+    }
 
-    const categories = new Set(transactions.map(t => t.category).filter(Boolean));
-    const totalCategoriesCount = categories.size;
+    if (backendSummary) {
+        avgAmount = Number(backendSummary.averageTransactionSize ?? backendSummary.average ?? 0);
+        const categories = new Set(transactions.map(t => t.category).filter(Boolean));
+        totalCategoriesCount = categories.size;
 
-    // Detect anomalies
-    const analyzed = detectAnomalies(transactions);
-    const anomalyCount = analyzed.filter(t => Boolean(t.isAnomaly)).length;
-    const anomalyRate = count > 0 ? (anomalyCount / count) * 100 : 0;
-    const anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+        anomalyCount = backendAnomalySummary?.anomalyCount ?? 0;
+        const totalTxs = backendSummary.totalTransactions || transactions.length;
+        const anomalyRate = totalTxs > 0 ? (anomalyCount / totalTxs) * 100 : 0;
+        anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+    } else {
+        const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const count = transactions.length;
+        avgAmount = count > 0 ? total / count : 0;
+
+        const categories = new Set(transactions.map(t => t.category).filter(Boolean));
+        totalCategoriesCount = categories.size;
+
+        // Detect anomalies locally for guest
+        const analyzed = detectAnomalies(transactions);
+        anomalyCount = analyzed.filter(t => Boolean(t.isAnomaly)).length;
+        const anomalyRate = count > 0 ? (anomalyCount / count) * 100 : 0;
+        anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+    }
 
     el.innerHTML = `
         <div class="insight-card-header">

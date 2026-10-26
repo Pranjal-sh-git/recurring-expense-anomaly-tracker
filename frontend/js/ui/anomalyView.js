@@ -56,14 +56,31 @@ export function initAnomalyView() {
  *
  * @param {Array<object>} transactions — Raw transactions from the store.
  * @param {Array<object>} analyzed     — Anomaly-enriched transactions from detectAnomalies().
+ * @param {object} [backendAnomalyData] — Optional pre-calculated backend anomaly data.
  */
-export function updateAnomalyView(transactions, analyzed) {
-    if (!Array.isArray(analyzed)) analyzed = [];
+export function updateAnomalyView(transactions, analyzed, backendAnomalyData = null) {
+    let summary;
 
-    // getAnomalySummary re-uses already-detected data by checking for isAnomaly flags
-    const summary = getAnomalySummary(analyzed);
+    if (backendAnomalyData && (backendAnomalyData.anomalySummary || backendAnomalyData.anomalies)) {
+        const rawSummary = backendAnomalyData.anomalySummary || {};
+        const anomalyList = backendAnomalyData.anomalies?.anomalies || rawSummary.anomalies || [];
+        const examinedCount = rawSummary.examinedCount ?? rawSummary.totalTransactions ?? (Array.isArray(transactions) ? transactions.length : 0);
+        const anomCount = rawSummary.anomalyCount ?? anomalyList.length;
+        const rate = rawSummary.anomalyRate ?? (examinedCount > 0 ? (anomCount / examinedCount) * 100 : 0);
 
-    const categoriesAffected = Object.keys(summary.anomaliesByCategory).length;
+        summary = {
+            anomalyCount: anomCount,
+            totalTransactions: examinedCount,
+            anomalyRate: rate,
+            anomaliesByCategory: rawSummary.anomaliesByCategory || rawSummary.byCategory || {},
+            anomalies: anomalyList
+        };
+    } else {
+        if (!Array.isArray(analyzed)) analyzed = [];
+        summary = getAnomalySummary(analyzed);
+    }
+
+    const categoriesAffected = Object.keys(summary.anomaliesByCategory || {}).length;
 
     // ── 1. Stat cards ──
     html(IDS.statCards, _buildStatCards(summary, categoriesAffected));
