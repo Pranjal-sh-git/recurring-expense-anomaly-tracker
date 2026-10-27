@@ -20,14 +20,21 @@ import { getActiveDateRange } from './dateRangePicker.js';
 // ─── Element ID map ───────────────────────────────────────────────────────────
 
 const ELEMENT_IDS = {
-    totalExpenses:     'total-expenses-value',
-    totalTransactions: 'total-transactions-value',
-    anomaliesDetected: 'anomalies-value',
-    highestCategory:   'highest-category-value',
-    recurringCount:    'recurring-count-value',
-    sidebarTotal:      'sidebar-record-count',
-    sidebarAnomalies:  'sidebar-anomaly-count',
-    recentList:        'recent-transactions-list',
+    totalExpenses:        'total-expenses-value',
+    totalTransactions:    'total-transactions-value',
+    anomaliesDetected:    'anomalies-value',
+    highestCategory:      'highest-category-value',
+    recurringCount:       'recurring-count-value',
+    sidebarTotal:         'sidebar-record-count',
+    sidebarAnomalies:     'sidebar-anomaly-count',
+    sidebarSyncStatus:    'sidebar-sync-status',
+    sidebarSyncDot:       'sidebar-sync-dot',
+    sidebarSyncText:      'sidebar-sync-text',
+    sidebarAnomalyStatus: 'sidebar-anomaly-status',
+    sidebarAnomalyDot:    'sidebar-anomaly-dot',
+    sidebarAnomalyText:   'sidebar-anomaly-text',
+    globalBanner:         'global-connection-banner',
+    recentList:           'recent-transactions-list',
 };
 
 // ─── Category emoji map ───────────────────────────────────────────────────────
@@ -59,6 +66,173 @@ function setText(id, text) {
         el.textContent = text;
     } else {
         console.warn(`Dashboard: element #${id} not found in DOM.`);
+    }
+}
+
+// ─── Connection Status & Unavailable State APIs ───────────────────────────────
+
+/**
+ * Update the sidebar and global server connection indicator.
+ *
+ * @param {boolean} isOnline - Whether the backend server is reachable and active.
+ * @param {string|null} [statusMessage] - Custom status text (e.g. 'Synced with server', 'Connection lost').
+ * @param {boolean} [isInMemory] - Whether transactions currently displayed are in-memory (offline) vs freshly synced.
+ */
+export function setServerConnectionStatus(isOnline, statusMessage = null, isInMemory = false) {
+    const statusEl   = document.getElementById(ELEMENT_IDS.sidebarSyncStatus);
+    const dotEl      = document.getElementById(ELEMENT_IDS.sidebarSyncDot);
+    const textEl     = document.getElementById(ELEMENT_IDS.sidebarSyncText);
+    const bannerEl   = document.getElementById(ELEMENT_IDS.globalBanner);
+    const anomTextEl = document.getElementById(ELEMENT_IDS.sidebarAnomalyText);
+
+    if (isOnline) {
+        if (statusEl) statusEl.className = 'src-status';
+        if (dotEl) dotEl.className = 'status-pulse-dot';
+        if (textEl) textEl.textContent = statusMessage || 'Synced just now';
+        if (anomTextEl) anomTextEl.textContent = 'Active alerts';
+
+        if (bannerEl) {
+            bannerEl.style.display = 'none';
+            bannerEl.innerHTML = '';
+        }
+    } else {
+        if (statusEl) statusEl.className = 'src-status src-status--danger';
+        if (dotEl) dotEl.className = 'status-pulse-dot status-pulse-dot--danger';
+        if (textEl) {
+            textEl.textContent = statusMessage || (isInMemory ? 'Connection lost (In-memory)' : 'Unable to sync with server');
+        }
+        if (anomTextEl) anomTextEl.textContent = 'Server offline';
+
+        if (bannerEl) {
+            bannerEl.style.display = 'block';
+            if (isInMemory) {
+                bannerEl.innerHTML = `
+                    <div class="server-status-banner server-status-banner--danger">
+                        <div class="ssb-content">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <div class="ssb-text">
+                                <strong>Backend Connection Lost</strong>
+                                <span>Unable to sync with Express server. Displaying previously loaded in-memory records. Any newly created transactions cannot be saved until the backend reconnects.</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-retry-sync" id="btn-banner-retry">Retry Connection</button>
+                    </div>
+                `;
+            } else {
+                bannerEl.innerHTML = `
+                    <div class="server-status-banner server-status-banner--danger">
+                        <div class="ssb-content">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <div class="ssb-text">
+                                <strong>Unable to Connect to Server</strong>
+                                <span>KharchaSense backend on port 5000 is unreachable. Live MongoDB transactions, metrics, and anomaly insights cannot be loaded.</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-retry-sync" id="btn-banner-retry">Retry Connection</button>
+                    </div>
+                `;
+            }
+
+            const retryBtn = document.getElementById('btn-banner-retry');
+            if (retryBtn && typeof window._kharchaSenseRetrySync === 'function') {
+                retryBtn.addEventListener('click', window._kharchaSenseRetrySync);
+            }
+        }
+    }
+}
+
+/**
+ * Render explicit unavailable states for Overview metrics, recurring commitment card,
+ * monthly summary card, and recent transactions feed when server is disconnected.
+ *
+ * @param {string} [errorMessage]
+ */
+export function renderDashboardUnavailable(errorMessage = 'Server connection lost.') {
+    setText(ELEMENT_IDS.totalExpenses,     '--');
+    setText(ELEMENT_IDS.totalTransactions, '--');
+    setText(ELEMENT_IDS.anomaliesDetected, '--');
+    setText(ELEMENT_IDS.highestCategory,   '--');
+    setText(ELEMENT_IDS.recurringCount,    '--');
+    setText(ELEMENT_IDS.sidebarTotal,      '--');
+    setText(ELEMENT_IDS.sidebarAnomalies,  '--');
+
+    const totalExpCard = document.getElementById('total-expenses-card');
+    if (totalExpCard) {
+        const badge = totalExpCard.querySelector('.comp-badge');
+        const text  = totalExpCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const totalTxCard = document.getElementById('total-transactions-card');
+    if (totalTxCard) {
+        const badge = totalTxCard.querySelector('.comp-badge');
+        const text  = totalTxCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const highestCard = document.getElementById('highest-spending-card');
+    if (highestCard) {
+        const text = highestCard.querySelector('.comp-text');
+        if (text) text.textContent = 'Data unavailable';
+    }
+
+    const recCard = document.getElementById('recurring-count-card');
+    if (recCard) {
+        const badge = recCard.querySelector('.comp-badge');
+        const text  = recCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const recOverviewCard = document.getElementById('overview-recurring-card');
+    if (recOverviewCard) {
+        recOverviewCard.innerHTML = `
+            <div class="insight-card-header">
+                <h3 class="insight-card-title">Recurring Commitment</h3>
+                <span class="insight-card-desc">Server unavailable</span>
+            </div>
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Server connection lost</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Cannot calculate recurring commitments while backend is offline.</p>
+            </div>
+        `;
+    }
+
+    const summaryOverviewCard = document.getElementById('overview-summary-card');
+    if (summaryOverviewCard) {
+        summaryOverviewCard.innerHTML = `
+            <div class="insight-card-header">
+                <h3 class="insight-card-title">Monthly Summary</h3>
+                <span class="insight-card-desc">Server unavailable</span>
+            </div>
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Analytics unavailable</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Unable to load monthly spending summary from server.</p>
+            </div>
+        `;
+    }
+
+    const recentList = document.getElementById(ELEMENT_IDS.recentList);
+    if (recentList) {
+        recentList.innerHTML = `
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Recent transactions unavailable</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Unable to retrieve recent transactions from MongoDB server.</p>
+            </div>
+        `;
     }
 }
 

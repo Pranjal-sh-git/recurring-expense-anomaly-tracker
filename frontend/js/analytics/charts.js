@@ -661,6 +661,34 @@ export function updateAllCharts(transactions, config = {}) {
   };
 }
 
+/**
+ * Render unavailable placeholder states across all dashboard and analytics chart containers.
+ * Invoked on backend server disconnect or API fetch failure.
+ *
+ * @param {string} [errorMessage]
+ */
+export function renderAllChartsUnavailable(errorMessage = 'Server connection lost. Unable to load chart data.') {
+  destroyAllCharts();
+  const containers = [
+    'category-chart-container',
+    'daily-chart-container',
+    'analytics-category-chart',
+    'analytics-daily-chart'
+  ];
+  containers.forEach(id => {
+    const el = resolveElement(id);
+    if (el) {
+      el.innerHTML = `
+        <div class="chart-unavailable-state">
+          <span class="chart-unavailable-icon" aria-hidden="true">⚠️</span>
+          <p class="chart-unavailable-title">Chart Data Unavailable</p>
+          <p class="chart-unavailable-desc">${String(errorMessage).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        </div>
+      `;
+    }
+  });
+}
+
 // Aliases for convenience and flexible API naming conventions
 export const updateCategorySpendingChart = renderCategorySpendingChart;
 export const updateDailySpendingChart = renderDailySpendingChart;

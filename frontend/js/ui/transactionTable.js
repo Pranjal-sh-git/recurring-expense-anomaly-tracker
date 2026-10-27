@@ -72,10 +72,11 @@ function _esc(str) {
  * @param {object} tx - A transaction object (may include isAnomaly and zScore from anomalyService).
  * @returns {string} HTML string for a <tr> element.
  */
-function buildRow(tx) {
+function buildRow(tx, options = {}) {
     const displayDate = formatDate(tx.date, 'medium');
     const displayAmt = formatCurrency(tx.amount);
     const isAnomaly = Boolean(tx.isAnomaly);
+    const isOffline = Boolean(options.isOffline);
     const rowClass = isAnomaly ? 'tx-row row-anomaly' : 'tx-row';
     const safeTitle = _esc(tx.title || '--');
     const safeCategory = _esc(tx.category || 'Other');
@@ -90,6 +91,11 @@ function buildRow(tx) {
         ? '<span class="badge badge-anomaly">⚠ Anomaly</span>'
         : '<span class="badge badge-normal">Normal</span>';
 
+    // Source sync status badge (distinguishes in-memory vs freshly synced MongoDB records)
+    const syncBadge = isOffline
+        ? '<span class="badge badge-in-memory" title="Loaded from browser memory — unverified with MongoDB">In-Memory</span>'
+        : '<span class="badge badge-synced" title="Freshly synced from MongoDB Atlas"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Synced</span>';
+
     // Category badge styling
     const categoryBadge = `<span class="badge badge-category">${safeCategory}</span>`;
 
@@ -103,7 +109,7 @@ function buildRow(tx) {
             <td class="tx-category-cell">${categoryBadge}</td>
             <td class="tx-amount">${displayAmt}</td>
             <td>${typeBadge}</td>
-            <td>${statusBadge}</td>
+            <td><div style="display:inline-flex;gap:0.3rem;align-items:center;flex-wrap:wrap;">${statusBadge}${syncBadge}</div></td>
             <td class="tx-actions">
                 <div class="tx-actions-btns">
                     <button
@@ -208,12 +214,43 @@ export function initTransactionTable(onDelete, onEdit) {
  * Replaces all existing rows; shows the empty-state message for an empty array.
  *
  * @param {Array<object>} transactions - Array of transaction objects.
+ * @param {object} [options={}] - Rendering options { isOffline: boolean }.
  */
-export function renderTransactions(transactions) {
+export function renderTransactions(transactions, options = {}) {
     const tbody = document.getElementById('transaction-table-body');
     if (!tbody) {
         console.warn('renderTransactions: #transaction-table-body not found. Call initTransactionTable() first.');
         return;
+    }
+
+    const isOffline = Boolean(options.isOffline);
+    const container = document.getElementById('transaction-table-container');
+
+    // Manage the in-memory offline banner above table
+    let offlineBanner = document.getElementById('table-offline-banner');
+    if (isOffline && Array.isArray(transactions) && transactions.length > 0) {
+        if (!offlineBanner && container) {
+            offlineBanner = document.createElement('div');
+            offlineBanner.id = 'table-offline-banner';
+            offlineBanner.className = 'table-offline-banner';
+            container.insertBefore(offlineBanner, container.firstChild);
+        }
+        if (offlineBanner) {
+            offlineBanner.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div class="tob-text">
+                    <strong>Backend Connection Lost (In-Memory View)</strong>
+                    <span>Showing ${transactions.length} previously loaded records from memory. These records are not verified with MongoDB. Reconnect the server to resume live synchronization.</span>
+                </div>
+            `;
+            offlineBanner.style.display = 'flex';
+        }
+    } else if (offlineBanner) {
+        offlineBanner.style.display = 'none';
     }
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
@@ -221,7 +258,7 @@ export function renderTransactions(transactions) {
         return;
     }
 
-    tbody.innerHTML = transactions.map(buildRow).join('');
+    tbody.innerHTML = transactions.map(t => buildRow(t, options)).join('');
 }
 
 /**
@@ -231,6 +268,8 @@ export function renderTransactions(transactions) {
  */
 export function renderTableError(errorMessage) {
     const tbody = document.getElementById('transaction-table-body');
+    const offlineBanner = document.getElementById('table-offline-banner');
+    if (offlineBanner) offlineBanner.style.display = 'none';
     if (!tbody) return;
 
     tbody.innerHTML = `
@@ -238,8 +277,8 @@ export function renderTableError(errorMessage) {
             <td colspan="7" class="empty-state-cell">
                 <div class="empty-state empty-state--error">
                     <span class="empty-state-icon" aria-hidden="true">⚠️</span>
-                    <p class="empty-state-text" style="font-weight:600; color: #ef4444;">Failed to load transactions from MongoDB</p>
-                    <p class="empty-state-hint">${_esc(errorMessage || 'Database connection error. Please refresh or try again later.')}</p>
+                    <p class="empty-state-text" style="font-weight:600; color: #ef4444;">Unable to sync with server</p>
+                    <p class="empty-state-hint">${_esc(errorMessage || 'Database connection error. Please ensure the backend server is running and reload to retry.')}</p>
                 </div>
             </td>
         </tr>

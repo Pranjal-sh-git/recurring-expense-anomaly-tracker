@@ -65,6 +65,33 @@ export function initAnalyticsView() {
 }
 
 /**
+ * Render unavailable placeholder states across the Analytics section when the backend is offline.
+ * @param {string} [errorMessage]
+ */
+export function renderAnalyticsUnavailable(errorMessage = 'Server connection lost.') {
+    html(IDS.summaryCards, `
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Total Spend</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Avg Transaction</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Top Category</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Recurring Spend</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+    `);
+    html(IDS.recurringBar, `
+        <div class="empty-state empty-state--error" style="padding: 1.25rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Recurring analytics unavailable</p>
+            <p class="empty-state-hint" style="font-size:0.75rem;">Cannot calculate commitment breakdown while server is offline.</p>
+        </div>
+    `);
+    html(IDS.categoryTable, `
+        <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Category breakdown unavailable</p>
+            <p class="empty-state-hint" style="font-size:0.75rem;">Failed to fetch category statistics from backend server.</p>
+        </div>
+    `);
+}
+
+/**
  * Re-render the full Analytics section with current data.
  * Called inside refreshApp() after every add / delete / boot.
  *

@@ -16,16 +16,17 @@
 import { getTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction, reloadForUser, clearInMemoryState } from './state/transactionStore.js';
 import { detectAnomalies, countAnomalies }                     from './services/anomalyService.js';
 import { generateDashboardSummary }                            from './analytics/analyticsService.js';
-import { updateAllCharts }                                     from './analytics/charts.js';
+import { updateAllCharts, renderAllChartsUnavailable }         from './analytics/charts.js';
 import { initDashboard, updateDashboard,
-         updateRecurringCount, updateRecentTransactions }      from './ui/dashboard.js';
+         updateRecurringCount, updateRecentTransactions,
+         setServerConnectionStatus, renderDashboardUnavailable } from './ui/dashboard.js';
 import { initForm, getFormValues, resetForm,
          showFormError, showFormSuccess }                      from './ui/forms.js';
 import { initTransactionTable, renderTransactions, renderTableError } from './ui/transactionTable.js';
 import { formatCurrency }                                      from './utils/formatters.js';
 import { initNavigation }                                      from './ui/navigation.js';
-import { initAnalyticsView, updateAnalyticsView }             from './ui/analyticsView.js';
-import { initAnomalyView,   updateAnomalyView   }             from './ui/anomalyView.js';
+import { initAnalyticsView, updateAnalyticsView, renderAnalyticsUnavailable } from './ui/analyticsView.js';
+import { initAnomalyView,   updateAnomalyView,   renderAnomalyUnavailable   } from './ui/anomalyView.js';
 import { initFilters, applyFilters }                           from './ui/transactionFilters.js';
 import { initDateRangePicker, filterTransactionsByDate }      from './ui/dateRangePicker.js';
 import { initLandingPage }                                     from './landing.js';
@@ -44,13 +45,14 @@ import { getActiveDateRange }                                      from './ui/da
 /**
  * Re-render the transaction table with current filter settings and active date range.
  * @param {Array<object>} [enrichedTransactions] - Optional transactions enriched with backend anomalies.
+ * @param {object} [options={}] - Options { isOffline: boolean }.
  */
-function renderFilteredTable(enrichedTransactions = null) {
+function renderFilteredTable(enrichedTransactions = null, options = {}) {
     const raw = enrichedTransactions || getTransactions();
     const transactions = enrichedTransactions ? raw : filterTransactionsByDate(raw);
     const analyzed = enrichedTransactions ? transactions : detectAnomalies(transactions);
     const filtered = applyFilters(analyzed);
-    renderTransactions(filtered);
+    renderTransactions(filtered, options);
 }
 
 /**
@@ -113,6 +115,9 @@ async function refreshApp() {
             }
 
             if (backendData) {
+                // Confirm server connection is healthy and restore active sync status
+                setServerConnectionStatus(true, 'Synced just now');
+
                 const { summary, categories, trends, recurring, anomalies, anomalySummary } = backendData;
 
                 // 1. Map backend-flagged anomalies onto transactions
@@ -168,8 +173,8 @@ async function refreshApp() {
                 // 6. Anomaly Insights section (passing backend anomalies and statistical anomalySummary)
                 updateAnomalyView(transactions, analyzed, { anomalies, anomalySummary });
 
-                // 7. Full transaction table with backend anomaly flags
-                renderFilteredTable(analyzed);
+                // 7. Full transaction table with backend anomaly flags and live sync badge
+                renderFilteredTable(analyzed, { isOffline: false });
 
                 // 8. Charts (passing backend pre-computed category & daily trend distributions)
                 updateAllCharts(transactions, {
@@ -182,7 +187,23 @@ async function refreshApp() {
             }
         } catch (apiError) {
             _setAnalyticsLoadingState(false, apiError.message);
-            renderTableError(apiError.message || 'Database connection error.');
+            const hasInMemory = transactions.length > 0;
+            setServerConnectionStatus(false, hasInMemory ? 'Connection lost (In-memory)' : 'Unable to sync with server', hasInMemory);
+
+            if (hasInMemory) {
+                // Distinguish previously loaded in-memory transactions from freshly synced MongoDB records
+                renderFilteredTable(null, { isOffline: true });
+                renderAllChartsUnavailable('Server connection lost. Charts cannot be generated from live MongoDB data.');
+                renderAnalyticsUnavailable(apiError.message || 'Server connection lost.');
+                renderAnomalyUnavailable(apiError.message || 'Server connection lost.');
+            } else {
+                // Complete unavailable state on reload/initial fetch failure
+                renderTableError(apiError.message || 'Unable to connect to KharchaSense backend server.');
+                renderDashboardUnavailable(apiError.message || 'Server connection lost.');
+                renderAllChartsUnavailable('Unable to connect to backend server. Verify server is running on port 5000.');
+                renderAnalyticsUnavailable(apiError.message || 'Backend connection failed.');
+                renderAnomalyUnavailable(apiError.message || 'Backend connection failed.');
+            }
             return;
         }
     }
@@ -232,12 +253,24 @@ async function handleFormSubmit(e) {
             recurring: values.recurring,
         });
 
-        refreshApp();
+        await refreshApp();
         resetForm();
         showFormSuccess('Transaction added successfully!');
     } catch (err) {
-        // Descriptive errors from store or backend API
-        showFormError(err.message || 'Failed to add transaction. Please try again.');
+        // Requirement 1: Failed API writes never appear as saved transactions
+        // Requirement 5: Form values are preserved because resetForm() is NOT called
+        const isConnError = err.message && (
+            err.message.includes('Unable to connect') ||
+            err.message.includes('Failed to fetch') ||
+            err.message.includes('NetworkError') ||
+            err.message.includes('ECONNREFUSED')
+        );
+        if (isConnError) {
+            setServerConnectionStatus(false, 'Connection lost', getTransactions().length > 0);
+            showFormError('Connection lost: Server is offline. Your inputs are preserved — please retry once server is back online.');
+        } else {
+            showFormError(err.message || 'Failed to add transaction. Please try again.');
+        }
     }
 }
 
@@ -273,11 +306,21 @@ async function handleUpdateSave(updatedValues) {
             recurring: updatedValues.recurring,
         });
 
-        refreshApp();
+        await refreshApp();
         closeEditModal();
         showEditModalToast('Transaction updated successfully!', 'success');
     } catch (err) {
-        showEditModalError(err.message || 'Failed to update transaction. Please try again.');
+        const isConnError = err.message && (
+            err.message.includes('Unable to connect') ||
+            err.message.includes('Failed to fetch') ||
+            err.message.includes('NetworkError')
+        );
+        if (isConnError) {
+            setServerConnectionStatus(false, 'Connection lost', getTransactions().length > 0);
+            showEditModalError('Connection lost: Server is offline. Your changes are preserved — please retry once server is back online.');
+        } else {
+            showEditModalError(err.message || 'Failed to update transaction. Please try again.');
+        }
     }
 }
 
@@ -290,11 +333,21 @@ async function handleDelete(id) {
     try {
         const removed = await deleteTransaction(id);
         if (removed) {
-            refreshApp();
+            await refreshApp();
             showEditModalToast('Transaction deleted.', 'info');
         }
     } catch (err) {
-        showEditModalToast(err.message || 'Failed to delete transaction.', 'error');
+        const isConnError = err.message && (
+            err.message.includes('Unable to connect') ||
+            err.message.includes('Failed to fetch') ||
+            err.message.includes('NetworkError')
+        );
+        if (isConnError) {
+            setServerConnectionStatus(false, 'Connection lost', getTransactions().length > 0);
+            showEditModalToast('Connection lost: Unable to delete transaction while server is offline.', 'error');
+        } else {
+            showEditModalToast(err.message || 'Failed to delete transaction.', 'error');
+        }
     }
 }
 
@@ -305,6 +358,18 @@ async function handleDelete(id) {
  * Called once when the DOM is ready.
  */
 async function init() {
+    // 0. Register global retry handler for offline banner button
+    window._kharchaSenseRetrySync = async () => {
+        if (isAuthenticated()) {
+            try {
+                await reloadForUser();
+            } catch (err) {
+                console.warn('[RetrySync] Server still unreachable:', err);
+            }
+        }
+        await refreshApp();
+    };
+
     // 1. Navigation — must come first so section switching is active before any
     //    other module renders content (e.g. charts inside the overview section).
     initNavigation(refreshApp);
@@ -332,12 +397,17 @@ async function init() {
             await reloadForUser();
         } catch (loadErr) {
             console.error('[app.init] Could not load transactions from MongoDB:', loadErr);
-            renderTableError('Unable to load transactions from MongoDB. Please check your connection.');
+            setServerConnectionStatus(false, 'Unable to sync with server', false);
+            renderTableError('Unable to load transactions from MongoDB. Please verify that the backend server is running and reload.');
+            renderDashboardUnavailable('Server connection lost.');
+            renderAllChartsUnavailable('Server unavailable. Could not fetch analytics data from backend.');
+            renderAnalyticsUnavailable('Server connection lost.');
+            renderAnomalyUnavailable('Server connection lost.');
         }
     }
 
     // Refresh application UI (metrics, charts, anomaly cards, transaction table)
-    refreshApp();
+    await refreshApp();
 
     // 5. Initialize Landing Page scroll reveals, navbar blur, and triggers
     initLandingPage();

@@ -389,9 +389,92 @@ textarea {
     color: #dc2626;
 }
 
+.status-pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #5BC236;
+    display: inline-block;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(91, 194, 54, 0.25);
+    animation: statusDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.9); }
+}
+
 .status-pulse-dot--danger {
     background: #ef4444 !important;
     box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25) !important;
+}
+
+/* Global Server Connection Banner */
+.global-connection-banner {
+    margin-bottom: 1.25rem;
+}
+
+.server-status-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 0.75rem 1.15rem;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.82rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.server-status-banner--danger {
+    background: #fef2f2;
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    color: #991b1b;
+}
+
+.ssb-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ssb-content svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    color: #ef4444;
+}
+
+.ssb-text strong {
+    display: block;
+    font-size: 0.84rem;
+    color: #b91c1c;
+    margin-bottom: 0.1rem;
+}
+
+.ssb-text span {
+    font-size: 0.78rem;
+    color: #7f1d1d;
+    line-height: 1.3;
+}
+
+.btn-retry-sync {
+    background: #ffffff;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #b91c1c;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm, 6px);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition, 0.2s ease);
+    flex-shrink: 0;
+}
+
+.btn-retry-sync:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
 }
 
 /* Sidebar Logout styling */

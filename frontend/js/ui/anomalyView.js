@@ -51,6 +51,25 @@ export function initAnomalyView() {
 }
 
 /**
+ * Render unavailable placeholder states across the Anomaly Insights section when the backend is offline.
+ * @param {string} [errorMessage]
+ */
+export function renderAnomalyUnavailable(errorMessage = 'Server connection lost.') {
+    html(IDS.statCards, `
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Anomalies Detected</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Anomaly Rate</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Categories Affected</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+    `);
+    html(IDS.list, `
+        <div class="empty-state empty-state--error" style="padding: 2.25rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;">Anomaly Insights Unavailable</p>
+            <p class="empty-state-hint">Unable to connect to the backend anomaly detection engine. Please check that the server is running on port 5000.</p>
+        </div>
+    `);
+}
+
+/**
  * Re-render the full Anomaly Insights section with current data.
  * Called inside refreshApp() on every add / delete / boot.
  *
