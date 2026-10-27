@@ -163,74 +163,78 @@ export async function importTransactionsApi(transactions) {
     return [];
 }
 
-// ─── LocalStorage Cache Fallback API ──────────────────────────────────────────
+// ─── LocalStorage Guest Storage & Cleanup API ─────────────────────────────────
 
 /**
- * Load saved transactions from LocalStorage cache for the given user.
+ * Load saved transactions for guest sessions.
+ * Authenticated users fetch exclusively from Express/MongoDB REST API.
  * @param {string|null} [userId]
  * @returns {Array<Object>}
  */
 export function loadTransactions(userId) {
     if (!isLocalStorageAvailable()) return [];
+    // Authenticated users fetch exclusively from Express/MongoDB
+    const activeId = userId || getCurrentUser()?.id || null;
+    if (activeId) {
+        return [];
+    }
+
     try {
-        const activeId = userId || getCurrentUser()?.id || null;
-        const key = storageKey(activeId);
-        let raw = localStorage.getItem(key);
-
-        // Check legacy storage keys if new key is empty
+        // Read guest transactions
+        let raw = localStorage.getItem('kharchasense_transactions_guest');
         if (!raw) {
-            const legacyKey = activeId ? `expense_tracker_transactions_${activeId}` : 'expense_tracker_transactions_guest';
-            raw = localStorage.getItem(legacyKey);
-            if (!raw && activeId === 'user_demo_001') {
-                raw = localStorage.getItem('expense_tracker_transactions');
-            }
-            if (raw) {
-                try {
-                    localStorage.setItem(key, raw);
-                } catch (e) {
-                    console.warn('Could not migrate transaction data:', e);
-                }
-            }
+            // Read legacy Phase 1 guest key if present, but DO NOT mutate, rewrite, or delete it
+            raw = localStorage.getItem('expense_tracker_transactions_guest');
         }
-
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-        console.error('dataService.loadTransactions: failed to parse stored data.', error);
+        console.error('dataService.loadTransactions: failed to parse stored guest data.', error);
         return [];
     }
 }
 
 /**
- * Persist an array of transactions to LocalStorage cache for the given user.
+ * Persist an array of transactions to LocalStorage for guest mode only.
+ * Dual-writing to LocalStorage is disabled for authenticated users.
  * @param {Array<Object>} transactions
  * @param {string|null} [userId]
- * @returns {boolean} True if saved successfully, false on error.
+ * @returns {boolean} True if saved successfully, false on error or if user is authenticated.
  */
 export function saveTransactions(transactions, userId) {
     if (!isLocalStorageAvailable()) return false;
+    const activeId = userId || getCurrentUser()?.id || null;
+    // Do not dual-write transactions to LocalStorage for authenticated sessions
+    if (activeId) {
+        return false;
+    }
+
     try {
         const list = Array.isArray(transactions) ? transactions : [];
-        const key = storageKey(userId);
-        localStorage.setItem(key, JSON.stringify(list));
+        localStorage.setItem('kharchasense_transactions_guest', JSON.stringify(list));
         return true;
     } catch (error) {
-        console.error('dataService.saveTransactions: failed to persist data.', error);
+        console.error('dataService.saveTransactions: failed to persist guest data.', error);
         return false;
     }
 }
 
 /**
- * Remove persisted transaction cache from LocalStorage for the given user.
+ * Remove persisted transaction cache for the given user.
+ * Preserves legacy Phase 1 keys.
  * @param {string|null} [userId]
  * @returns {boolean} True if cleared successfully, false on error.
  */
 export function clearTransactions(userId) {
     if (!isLocalStorageAvailable()) return false;
     try {
-        const key = storageKey(userId);
-        localStorage.removeItem(key);
+        if (userId) {
+            // Remove authenticated user's Phase 2 cache key only
+            localStorage.removeItem(`kharchasense_transactions_${userId}`);
+        } else {
+            localStorage.removeItem('kharchasense_transactions_guest');
+        }
         return true;
     } catch (error) {
         console.error('dataService.clearTransactions: failed to clear data.', error);

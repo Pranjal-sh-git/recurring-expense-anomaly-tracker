@@ -204,15 +204,24 @@ export async function verifySession() {
 
 /**
  * Log out the current user.
- * Clears JWT token and auth session flags without deleting application data.
+ * Clears JWT token, session flags, and authenticated transaction cache,
+ * strictly preserving guest and legacy Phase 1 storage.
  */
 export function logout() {
+    const user = getCurrentUser();
+    const userId = user?.id;
+
     removeToken();
     try {
         localStorage.removeItem(STORAGE_KEY_AUTH);
         localStorage.removeItem(STORAGE_KEY_CURRENT_USER);
         localStorage.removeItem(LEGACY_STORAGE_KEY_AUTH);
         localStorage.removeItem(LEGACY_STORAGE_KEY_CURRENT_USER);
+
+        // Remove authenticated user's Phase 2 transaction cache if present
+        if (userId) {
+            localStorage.removeItem(`kharchasense_transactions_${userId}`);
+        }
     } catch (e) {
         console.warn('[authService] Error clearing auth storage:', e);
     }

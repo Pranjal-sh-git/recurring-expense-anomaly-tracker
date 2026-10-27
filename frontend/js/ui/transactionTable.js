@@ -223,3 +223,25 @@ export function renderTransactions(transactions) {
 
     tbody.innerHTML = transactions.map(buildRow).join('');
 }
+
+/**
+ * Render an explicit error state in the transaction table body.
+ * Displayed when the backend MongoDB API is unreachable or returns an error.
+ * @param {string} [errorMessage]
+ */
+export function renderTableError(errorMessage) {
+    const tbody = document.getElementById('transaction-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr class="empty-state-row">
+            <td colspan="7" class="empty-state-cell">
+                <div class="empty-state empty-state--error">
+                    <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                    <p class="empty-state-text" style="font-weight:600; color: #ef4444;">Failed to load transactions from MongoDB</p>
+                    <p class="empty-state-hint">${_esc(errorMessage || 'Database connection error. Please refresh or try again later.')}</p>
+                </div>
+            </td>
+        </tr>
+    `;
+}

@@ -35,8 +35,8 @@ import { getCurrentUser, isAuthenticated }            from '../services/authServ
 // ─── In-memory state ──────────────────────────────────────────────────────────
 
 let _activeUserId = getCurrentUser()?.id ?? null;
-// Initialize from local cache for instant UI rendering
-let transactions = loadTransactions(_activeUserId);
+// Authenticated users fetch exclusively from Express/MongoDB; guest sessions use local guest store
+let transactions = isAuthenticated() ? [] : loadTransactions(null);
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
@@ -125,8 +125,18 @@ export function setTransactions(txArray) {
 }
 
 /**
+ * Immediately clear runtime in-memory transaction state.
+ * Used on logout and before switching accounts to prevent cross-account transaction exposure.
+ */
+export function clearInMemoryState() {
+    transactions = [];
+    _activeUserId = null;
+}
+
+/**
  * Re-hydrate store with authoritative data from MongoDB for the authenticated user.
- * Falls back to LocalStorage cache if offline or unauthenticated.
+ * For authenticated users: fetches exclusively from MongoDB. On failure, clears memory and throws.
+ * For unauthenticated / guest users: loads guest transactions from LocalStorage.
  * @returns {Promise<Array<Object>>}
  */
 export async function reloadForUser() {
@@ -138,17 +148,20 @@ export async function reloadForUser() {
             transactions = Array.isArray(apiTransactions)
                 ? apiTransactions.map(_formatTransaction)
                 : [];
-            // Cache locally for resilient offline support
-            saveTransactions(transactions, _activeUserId);
+            // Remove any legacy Phase 2 transaction cache for this authenticated user
+            if (_activeUserId) {
+                clearTransactions(_activeUserId);
+            }
             return getTransactions();
         } catch (error) {
-            console.warn('[transactionStore] Failed to fetch from MongoDB, falling back to cache:', error);
-            transactions = loadTransactions(_activeUserId).map(_formatTransaction);
-            return getTransactions();
+            console.error('[transactionStore] Failed to fetch authoritative transactions from MongoDB:', error);
+            // Requirement 2: Do NOT fall back to stale cached transactions. Keep memory clear and propagate error.
+            transactions = [];
+            throw error;
         }
     } else {
-        // Unauthenticated / guest session
-        transactions = loadTransactions(_activeUserId).map(_formatTransaction);
+        // Unauthenticated / guest session only
+        transactions = loadTransactions(null).map(_formatTransaction);
         return getTransactions();
     }
 }
@@ -182,7 +195,7 @@ export async function addTransaction(transaction) {
 
             const formatted = _formatTransaction(created);
             transactions.push(formatted);
-            saveTransactions(transactions, _activeUserId);
+            // In-memory runtime state only for authenticated users (no LocalStorage dual-writing)
             return { ...formatted };
         } catch (apiError) {
             console.error('[transactionStore.addTransaction API Error]:', apiError);
@@ -197,7 +210,7 @@ export async function addTransaction(transaction) {
         });
         const formatted = _formatTransaction(normalized);
         transactions.push(formatted);
-        saveTransactions(transactions, _activeUserId);
+        saveTransactions(transactions, null);
         return { ...formatted };
     }
 }
@@ -248,7 +261,7 @@ export async function updateTransaction(id, updates) {
 
             const formatted = _formatTransaction(updated);
             transactions[index] = formatted;
-            saveTransactions(transactions, _activeUserId);
+            // In-memory runtime state only for authenticated users (no LocalStorage dual-writing)
             return { ...formatted };
         } catch (apiError) {
             console.error('[transactionStore.updateTransaction API Error]:', apiError);
@@ -257,7 +270,7 @@ export async function updateTransaction(id, updates) {
     } else {
         const formatted = _formatTransaction(candidate);
         transactions[index] = formatted;
-        saveTransactions(transactions, _activeUserId);
+        saveTransactions(transactions, null);
         return { ...formatted };
     }
 }
@@ -279,7 +292,7 @@ export async function deleteTransaction(id) {
         try {
             await deleteTransactionApi(id);
             transactions.splice(index, 1);
-            saveTransactions(transactions, _activeUserId);
+            // In-memory runtime state only for authenticated users (no LocalStorage dual-writing)
             return true;
         } catch (apiError) {
             console.error('[transactionStore.deleteTransaction API Error]:', apiError);
@@ -287,7 +300,7 @@ export async function deleteTransaction(id) {
         }
     } else {
         transactions.splice(index, 1);
-        saveTransactions(transactions, _activeUserId);
+        saveTransactions(transactions, null);
         return true;
     }
 }
@@ -342,7 +355,7 @@ export async function loadDemoData(demoTransactions, append = false) {
             } else {
                 transactions = formattedList;
             }
-            saveTransactions(transactions, _activeUserId);
+            // In-memory runtime state only for authenticated users (no LocalStorage dual-writing)
             return formattedList.map(t => ({ ...t }));
         } catch (error) {
             console.error('[transactionStore.loadDemoData API Error]:', error);
@@ -355,19 +368,23 @@ export async function loadDemoData(demoTransactions, append = false) {
         } else {
             transactions = localList;
         }
-        saveTransactions(transactions, _activeUserId);
+        saveTransactions(transactions, null);
         return localList.map(t => ({ ...t }));
     }
 }
 
 /**
- * Clear all transactions from memory and storage.
+ * Clear in-memory runtime transaction state for the active session.
+ * For guest users, also clears guest local storage.
+ * NOTE: For authenticated users, this ONLY clears local runtime memory;
+ * it DOES NOT delete records from MongoDB Atlas.
  */
 export async function clearStore() {
     _activeUserId = _userId();
     transactions = [];
-    clearTransactions(_activeUserId);
-    saveTransactions([], _activeUserId);
+    if (!isAuthenticated()) {
+        clearTransactions(null);
+    }
 }
 
 export default {
@@ -377,6 +394,7 @@ export default {
     updateTransaction,
     deleteTransaction,
     setTransactions,
+    clearInMemoryState,
     clearStore,
     loadDemoData,
     reloadForUser,

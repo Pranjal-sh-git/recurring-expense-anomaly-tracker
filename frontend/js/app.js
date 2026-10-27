@@ -13,7 +13,7 @@
  * All of that is delegated to the appropriate service modules.
  */
 
-import { getTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction, reloadForUser }  from './state/transactionStore.js';
+import { getTransactions, getTransactionById, addTransaction, updateTransaction, deleteTransaction, reloadForUser, clearInMemoryState } from './state/transactionStore.js';
 import { detectAnomalies, countAnomalies }                     from './services/anomalyService.js';
 import { generateDashboardSummary }                            from './analytics/analyticsService.js';
 import { updateAllCharts }                                     from './analytics/charts.js';
@@ -21,7 +21,7 @@ import { initDashboard, updateDashboard,
          updateRecurringCount, updateRecentTransactions }      from './ui/dashboard.js';
 import { initForm, getFormValues, resetForm,
          showFormError, showFormSuccess }                      from './ui/forms.js';
-import { initTransactionTable, renderTransactions }            from './ui/transactionTable.js';
+import { initTransactionTable, renderTransactions, renderTableError } from './ui/transactionTable.js';
 import { formatCurrency }                                      from './utils/formatters.js';
 import { initNavigation }                                      from './ui/navigation.js';
 import { initAnalyticsView, updateAnalyticsView }             from './ui/analyticsView.js';
@@ -182,10 +182,12 @@ async function refreshApp() {
             }
         } catch (apiError) {
             _setAnalyticsLoadingState(false, apiError.message);
+            renderTableError(apiError.message || 'Database connection error.');
+            return;
         }
     }
 
-    // Fallback for guest mode or offline sessions
+    // Fallback for unauthenticated guest sessions
     _renderFallbackApp(transactions);
 }
 
@@ -329,7 +331,8 @@ async function init() {
         try {
             await reloadForUser();
         } catch (loadErr) {
-            console.warn('[app.init] Could not load transactions from MongoDB, rendered from local cache:', loadErr);
+            console.error('[app.init] Could not load transactions from MongoDB:', loadErr);
+            renderTableError('Unable to load transactions from MongoDB. Please check your connection.');
         }
     }
 
@@ -342,10 +345,12 @@ async function init() {
     // 6. Initialize Authentication Modal and dynamic user display
     initAuthModal(async () => {
         updateNavbarUserDisplay();
+        clearInMemoryState(); // Guarantee immediate wipe of prior in-memory state before loading new account
         try {
             await reloadForUser();   // fetch authenticated user's transactions from MongoDB
         } catch (authLoadErr) {
-            console.warn('[app.authModal] reloadForUser failed after auth:', authLoadErr);
+            console.error('[app.authModal] reloadForUser failed after auth:', authLoadErr);
+            renderTableError('Failed to load transactions for authenticated user.');
         }
         refreshApp();
         showDashboard('overview');
