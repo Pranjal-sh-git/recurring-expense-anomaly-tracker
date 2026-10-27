@@ -1,6 +1,5 @@
 /**
- * Utility functions for formatting currencies, dates, numbers, and percentages.
- * Member 4 - Analytics and Formatters Sprint
+ * formatters.js — Utility functions for formatting currencies, dates, numbers, and percentages.
  */
 
 /**

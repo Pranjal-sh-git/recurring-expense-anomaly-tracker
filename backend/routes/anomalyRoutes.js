@@ -22,14 +22,11 @@ const { protect } = require('../middleware/authMiddleware');
 
 // ─── Route Definitions ─────────────────────────────────────────────────────────
 
-// Standard mounting at /api/anomalies
+// Standard mounting at /api/anomalies (Controller handles request/response logic)
 router.get('/', protect, anomalyController.getAnomalies);
 router.get('/summary', protect, anomalyController.getAnomalySummary);
 
-// Flexible aliases if mounted at /api root
-router.get('/anomalies', protect, anomalyController.getAnomalies);
-router.get('/anomalies/summary', protect, anomalyController.getAnomalySummary);
-
+// Expose protect middleware for direct route testing
 router.protect = protect;
 
 module.exports = router;

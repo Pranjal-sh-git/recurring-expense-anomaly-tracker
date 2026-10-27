@@ -20,7 +20,7 @@
 
 import { isAuthenticated, logout, updateNavbarUserDisplay } from '../services/authService.js';
 import { openAuthModal, resetAuthForms } from './authModal.js';
-import { reloadForUser } from '../state/transactionStore.js';
+import { reloadForUser, clearInMemoryState } from '../state/transactionStore.js';
 
 // ─── Section metadata ────────────────────────────────────────────────────────
 
@@ -145,6 +145,7 @@ export async function showDashboard(sectionId = 'overview') {
         openAuthModal({
             tab: 'login',
             onSuccess: async () => {
+                clearInMemoryState();
                 await reloadForUser();
                 updateLandingAuthState();
                 await showDashboard(sectionId);
@@ -398,6 +399,7 @@ function _bindNavbarActions() {
             e.stopPropagation();
             if (dropdown) dropdown.classList.remove('dropdown--show');
             if (profileBtn) profileBtn.classList.remove('active');
+            clearInMemoryState();
             logout();
             await reloadForUser();
             resetAuthForms();
@@ -419,6 +421,7 @@ function _bindDashboardReturnActions() {
     const logoutBtn = document.querySelector('.btn-logout');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
+            clearInMemoryState();
             logout();
             await reloadForUser();
             resetAuthForms();

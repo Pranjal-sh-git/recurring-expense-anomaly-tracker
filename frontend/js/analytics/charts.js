@@ -649,13 +649,44 @@ export function updateAllCharts(transactions, config = {}) {
   const categoryTarget = config.categoryContainer || 'category-chart-container';
   const dailyTarget = config.dailyContainer || 'daily-chart-container';
 
-  const categoryChart = renderCategorySpendingChart(categoryTarget, transactions, config.categoryOptions);
-  const dailyChart = renderDailySpendingChart(dailyTarget, transactions, config.dailyOptions);
+  const categoryInput = config.categoriesData || transactions;
+  const dailyInput = config.trendsData || transactions;
+
+  const categoryChart = renderCategorySpendingChart(categoryTarget, categoryInput, config.categoryOptions);
+  const dailyChart = renderDailySpendingChart(dailyTarget, dailyInput, config.dailyOptions);
 
   return {
     categoryChart,
     dailyChart
   };
+}
+
+/**
+ * Render unavailable placeholder states across all dashboard and analytics chart containers.
+ * Invoked on backend server disconnect or API fetch failure.
+ *
+ * @param {string} [errorMessage]
+ */
+export function renderAllChartsUnavailable(errorMessage = 'Server connection lost. Unable to load chart data.') {
+  destroyAllCharts();
+  const containers = [
+    'category-chart-container',
+    'daily-chart-container',
+    'analytics-category-chart',
+    'analytics-daily-chart'
+  ];
+  containers.forEach(id => {
+    const el = resolveElement(id);
+    if (el) {
+      el.innerHTML = `
+        <div class="chart-unavailable-state">
+          <span class="chart-unavailable-icon" aria-hidden="true">⚠️</span>
+          <p class="chart-unavailable-title">Chart Data Unavailable</p>
+          <p class="chart-unavailable-desc">${String(errorMessage).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+        </div>
+      `;
+    }
+  });
 }
 
 // Aliases for convenience and flexible API naming conventions

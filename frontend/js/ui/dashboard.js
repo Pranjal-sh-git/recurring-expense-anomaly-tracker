@@ -20,14 +20,21 @@ import { getActiveDateRange } from './dateRangePicker.js';
 // ─── Element ID map ───────────────────────────────────────────────────────────
 
 const ELEMENT_IDS = {
-    totalExpenses:     'total-expenses-value',
-    totalTransactions: 'total-transactions-value',
-    anomaliesDetected: 'anomalies-value',
-    highestCategory:   'highest-category-value',
-    recurringCount:    'recurring-count-value',
-    sidebarTotal:      'sidebar-record-count',
-    sidebarAnomalies:  'sidebar-anomaly-count',
-    recentList:        'recent-transactions-list',
+    totalExpenses:        'total-expenses-value',
+    totalTransactions:    'total-transactions-value',
+    anomaliesDetected:    'anomalies-value',
+    highestCategory:      'highest-category-value',
+    recurringCount:       'recurring-count-value',
+    sidebarTotal:         'sidebar-record-count',
+    sidebarAnomalies:     'sidebar-anomaly-count',
+    sidebarSyncStatus:    'sidebar-sync-status',
+    sidebarSyncDot:       'sidebar-sync-dot',
+    sidebarSyncText:      'sidebar-sync-text',
+    sidebarAnomalyStatus: 'sidebar-anomaly-status',
+    sidebarAnomalyDot:    'sidebar-anomaly-dot',
+    sidebarAnomalyText:   'sidebar-anomaly-text',
+    globalBanner:         'global-connection-banner',
+    recentList:           'recent-transactions-list',
 };
 
 // ─── Category emoji map ───────────────────────────────────────────────────────
@@ -59,6 +66,173 @@ function setText(id, text) {
         el.textContent = text;
     } else {
         console.warn(`Dashboard: element #${id} not found in DOM.`);
+    }
+}
+
+// ─── Connection Status & Unavailable State APIs ───────────────────────────────
+
+/**
+ * Update the sidebar and global server connection indicator.
+ *
+ * @param {boolean} isOnline - Whether the backend server is reachable and active.
+ * @param {string|null} [statusMessage] - Custom status text (e.g. 'Synced with server', 'Connection lost').
+ * @param {boolean} [isInMemory] - Whether transactions currently displayed are in-memory (offline) vs freshly synced.
+ */
+export function setServerConnectionStatus(isOnline, statusMessage = null, isInMemory = false) {
+    const statusEl   = document.getElementById(ELEMENT_IDS.sidebarSyncStatus);
+    const dotEl      = document.getElementById(ELEMENT_IDS.sidebarSyncDot);
+    const textEl     = document.getElementById(ELEMENT_IDS.sidebarSyncText);
+    const bannerEl   = document.getElementById(ELEMENT_IDS.globalBanner);
+    const anomTextEl = document.getElementById(ELEMENT_IDS.sidebarAnomalyText);
+
+    if (isOnline) {
+        if (statusEl) statusEl.className = 'src-status';
+        if (dotEl) dotEl.className = 'status-pulse-dot';
+        if (textEl) textEl.textContent = statusMessage || 'Synced just now';
+        if (anomTextEl) anomTextEl.textContent = 'Active alerts';
+
+        if (bannerEl) {
+            bannerEl.style.display = 'none';
+            bannerEl.innerHTML = '';
+        }
+    } else {
+        if (statusEl) statusEl.className = 'src-status src-status--danger';
+        if (dotEl) dotEl.className = 'status-pulse-dot status-pulse-dot--danger';
+        if (textEl) {
+            textEl.textContent = statusMessage || (isInMemory ? 'Connection lost (In-memory)' : 'Unable to sync with server');
+        }
+        if (anomTextEl) anomTextEl.textContent = 'Server offline';
+
+        if (bannerEl) {
+            bannerEl.style.display = 'block';
+            if (isInMemory) {
+                bannerEl.innerHTML = `
+                    <div class="server-status-banner server-status-banner--danger">
+                        <div class="ssb-content">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <div class="ssb-text">
+                                <strong>Backend Connection Lost</strong>
+                                <span>Unable to sync with Express server. Displaying previously loaded in-memory records. Any newly created transactions cannot be saved until the backend reconnects.</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-retry-sync" id="btn-banner-retry">Retry Connection</button>
+                    </div>
+                `;
+            } else {
+                bannerEl.innerHTML = `
+                    <div class="server-status-banner server-status-banner--danger">
+                        <div class="ssb-content">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                            <div class="ssb-text">
+                                <strong>Unable to Connect to Server</strong>
+                                <span>KharchaSense backend on port 5000 is unreachable. Live MongoDB transactions, metrics, and anomaly insights cannot be loaded.</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-retry-sync" id="btn-banner-retry">Retry Connection</button>
+                    </div>
+                `;
+            }
+
+            const retryBtn = document.getElementById('btn-banner-retry');
+            if (retryBtn && typeof window._kharchaSenseRetrySync === 'function') {
+                retryBtn.addEventListener('click', window._kharchaSenseRetrySync);
+            }
+        }
+    }
+}
+
+/**
+ * Render explicit unavailable states for Overview metrics, recurring commitment card,
+ * monthly summary card, and recent transactions feed when server is disconnected.
+ *
+ * @param {string} [errorMessage]
+ */
+export function renderDashboardUnavailable(errorMessage = 'Server connection lost.') {
+    setText(ELEMENT_IDS.totalExpenses,     '--');
+    setText(ELEMENT_IDS.totalTransactions, '--');
+    setText(ELEMENT_IDS.anomaliesDetected, '--');
+    setText(ELEMENT_IDS.highestCategory,   '--');
+    setText(ELEMENT_IDS.recurringCount,    '--');
+    setText(ELEMENT_IDS.sidebarTotal,      '--');
+    setText(ELEMENT_IDS.sidebarAnomalies,  '--');
+
+    const totalExpCard = document.getElementById('total-expenses-card');
+    if (totalExpCard) {
+        const badge = totalExpCard.querySelector('.comp-badge');
+        const text  = totalExpCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const totalTxCard = document.getElementById('total-transactions-card');
+    if (totalTxCard) {
+        const badge = totalTxCard.querySelector('.comp-badge');
+        const text  = totalTxCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const highestCard = document.getElementById('highest-spending-card');
+    if (highestCard) {
+        const text = highestCard.querySelector('.comp-text');
+        if (text) text.textContent = 'Data unavailable';
+    }
+
+    const recCard = document.getElementById('recurring-count-card');
+    if (recCard) {
+        const badge = recCard.querySelector('.comp-badge');
+        const text  = recCard.querySelector('.comp-text');
+        if (badge) { badge.textContent = 'Offline'; badge.className = 'comp-badge comp-badge--danger'; }
+        if (text) text.textContent = 'server disconnected';
+    }
+
+    const recOverviewCard = document.getElementById('overview-recurring-card');
+    if (recOverviewCard) {
+        recOverviewCard.innerHTML = `
+            <div class="insight-card-header">
+                <h3 class="insight-card-title">Recurring Commitment</h3>
+                <span class="insight-card-desc">Server unavailable</span>
+            </div>
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Server connection lost</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Cannot calculate recurring commitments while backend is offline.</p>
+            </div>
+        `;
+    }
+
+    const summaryOverviewCard = document.getElementById('overview-summary-card');
+    if (summaryOverviewCard) {
+        summaryOverviewCard.innerHTML = `
+            <div class="insight-card-header">
+                <h3 class="insight-card-title">Monthly Summary</h3>
+                <span class="insight-card-desc">Server unavailable</span>
+            </div>
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Analytics unavailable</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Unable to load monthly spending summary from server.</p>
+            </div>
+        `;
+    }
+
+    const recentList = document.getElementById(ELEMENT_IDS.recentList);
+    if (recentList) {
+        recentList.innerHTML = `
+            <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+                <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Recent transactions unavailable</p>
+                <p class="empty-state-hint" style="font-size:0.75rem;">Unable to retrieve recent transactions from MongoDB server.</p>
+            </div>
+        `;
     }
 }
 
@@ -124,7 +298,7 @@ export function updateDashboard({
     totalTransactions,
     anomaliesDetected,
     highestCategory,
-} = {}, filteredTransactions = null) {
+} = {}, filteredTransactions = null, backendData = null) {
     const transactions = Array.isArray(filteredTransactions) ? filteredTransactions : getTransactions();
 
     if (totalExpenses     !== undefined) {
@@ -175,19 +349,26 @@ export function updateDashboard({
     _updateMetricComparisons(transactions);
 
     // Update secondary overview insight cards
-    _updateOverviewRecurring(transactions);
-    _updateOverviewSummary(transactions);
+    _updateOverviewRecurring(transactions, backendData?.recurring);
+    _updateOverviewSummary(transactions, backendData?.summary, backendData?.anomalySummary);
 }
 
 /**
  * Count transactions flagged as recurring and update the recurring-count card.
  * @param {Array<object>} transactions - Raw transaction array from the store.
+ * @param {object} [backendRecurring] - Optional pre-computed backend recurring metrics.
  */
-export function updateRecurringCount(transactions) {
-    if (!Array.isArray(transactions)) return;
-    const recurringTxs = transactions.filter(t => Boolean(t.recurring));
-    const count = recurringTxs.length;
-    const total = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+export function updateRecurringCount(transactions, backendRecurring = null) {
+    let count, total;
+    if (backendRecurring && (backendRecurring.recurring || backendRecurring.recurringSpend !== undefined)) {
+        total = Number(backendRecurring.recurring?.total ?? backendRecurring.recurringSpend ?? 0);
+        count = Number(backendRecurring.recurring?.count ?? backendRecurring.recurringCount ?? 0);
+    } else {
+        if (!Array.isArray(transactions)) return;
+        const recurringTxs = transactions.filter(t => Boolean(t.recurring));
+        count = recurringTxs.length;
+        total = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    }
     
     // Set the amount as value
     setText(ELEMENT_IDS.recurringCount, formatCurrency(total));
@@ -440,7 +621,7 @@ function _buildRecentItem(tx) {
 /**
  * Updates the Recurring vs One-off card on the Overview dashboard.
  */
-function _updateOverviewRecurring(transactions) {
+function _updateOverviewRecurring(transactions, backendRecurring = null) {
     const el = document.getElementById('overview-recurring-card');
     if (!el) return;
 
@@ -470,13 +651,22 @@ function _updateOverviewRecurring(transactions) {
         return;
     }
 
-    const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const recurringTxs = transactions.filter(t => Boolean(t.recurring));
-    const recurringSpend = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const oneOffSpend = Math.max(0, total - recurringSpend);
+    let recPct, oneOffPct, recurringSpend, oneOffSpend;
 
-    const recPct = total > 0 ? (recurringSpend / total) * 100 : 0;
-    const oneOffPct = total > 0 ? (oneOffSpend / total) * 100 : 0;
+    if (backendRecurring && (backendRecurring.recurring || backendRecurring.recurringSpend !== undefined)) {
+        recPct = Number(backendRecurring.recurring?.percentage ?? backendRecurring.recurringPct ?? 0);
+        oneOffPct = Number(backendRecurring.nonRecurring?.percentage ?? backendRecurring.oneOffPct ?? 0);
+        recurringSpend = Number(backendRecurring.recurring?.total ?? backendRecurring.recurringSpend ?? 0);
+        oneOffSpend = Number(backendRecurring.nonRecurring?.total ?? backendRecurring.oneOffSpend ?? 0);
+    } else {
+        const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const recurringTxs = transactions.filter(t => Boolean(t.recurring));
+        recurringSpend = recurringTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        oneOffSpend = Math.max(0, total - recurringSpend);
+
+        recPct = total > 0 ? (recurringSpend / total) * 100 : 0;
+        oneOffPct = total > 0 ? (oneOffSpend / total) * 100 : 0;
+    }
 
     el.innerHTML = `
         <div class="insight-card-header">
@@ -505,7 +695,7 @@ function _updateOverviewRecurring(transactions) {
 /**
  * Updates the Monthly Summary card on the Overview dashboard.
  */
-function _updateOverviewSummary(transactions) {
+function _updateOverviewSummary(transactions, backendSummary = null, backendAnomalySummary = null) {
     const el = document.getElementById('overview-summary-card');
     if (!el) return;
 
@@ -537,22 +727,39 @@ function _updateOverviewSummary(transactions) {
         return;
     }
 
-    const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    const count = transactions.length;
-    const avgAmount = count > 0 ? total / count : 0;
+    let avgAmount, totalCategoriesCount, anomalyRateStr, anomalyCount;
+    let highestExpenseCategory = '--';
+    let highestExpenseAmt = '₹0.00';
 
     const highestTx = [...transactions].sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))[0];
-    const highestExpenseCategory = highestTx ? highestTx.category : '--';
-    const highestExpenseAmt = highestTx ? formatCurrency(highestTx.amount) : '₹0.00';
+    if (highestTx) {
+        highestExpenseCategory = highestTx.category;
+        highestExpenseAmt = formatCurrency(highestTx.amount);
+    }
 
-    const categories = new Set(transactions.map(t => t.category).filter(Boolean));
-    const totalCategoriesCount = categories.size;
+    if (backendSummary) {
+        avgAmount = Number(backendSummary.averageTransactionSize ?? backendSummary.average ?? 0);
+        const categories = new Set(transactions.map(t => t.category).filter(Boolean));
+        totalCategoriesCount = categories.size;
 
-    // Detect anomalies
-    const analyzed = detectAnomalies(transactions);
-    const anomalyCount = analyzed.filter(t => Boolean(t.isAnomaly)).length;
-    const anomalyRate = count > 0 ? (anomalyCount / count) * 100 : 0;
-    const anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+        anomalyCount = backendAnomalySummary?.anomalyCount ?? 0;
+        const totalTxs = backendSummary.totalTransactions || transactions.length;
+        const anomalyRate = totalTxs > 0 ? (anomalyCount / totalTxs) * 100 : 0;
+        anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+    } else {
+        const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const count = transactions.length;
+        avgAmount = count > 0 ? total / count : 0;
+
+        const categories = new Set(transactions.map(t => t.category).filter(Boolean));
+        totalCategoriesCount = categories.size;
+
+        // Detect anomalies locally for guest
+        const analyzed = detectAnomalies(transactions);
+        anomalyCount = analyzed.filter(t => Boolean(t.isAnomaly)).length;
+        const anomalyRate = count > 0 ? (anomalyCount / count) * 100 : 0;
+        anomalyRateStr = `${anomalyRate.toFixed(1)}%`;
+    }
 
     el.innerHTML = `
         <div class="insight-card-header">
