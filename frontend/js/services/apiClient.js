@@ -12,9 +12,14 @@
 const TOKEN_KEY = 'kharchaSenseToken';
 const LEGACY_TOKEN_KEY = 'token';
 
+const PRODUCTION_API_URL = 'https://kharchasense-api.onrender.com';
+const LOCAL_API_URL = 'http://localhost:5000';
+
 /**
  * Determine the API base URL.
- * Defaults to 'http://localhost:5000' unless running on port 5000 or custom config provided.
+ * Checks for explicit window.KHARCHASENSE_API_URL or window.API_BASE_URL first,
+ * then dynamically detects whether running in local development or a remote production environment (e.g. Netlify).
+ * Defaults to 'http://localhost:5000' for local development and test environments.
  * @returns {string}
  */
 export function getApiBaseUrl() {
@@ -22,11 +27,25 @@ export function getApiBaseUrl() {
         if (window.KHARCHASENSE_API_URL) {
             return window.KHARCHASENSE_API_URL.replace(/\/+$/, '');
         }
-        if (window.location && (window.location.port === '5000' || window.location.origin.includes(':5000'))) {
-            return '';
+        if (window.API_BASE_URL) {
+            return window.API_BASE_URL.replace(/\/+$/, '');
+        }
+        if (window.location) {
+            if (window.location.port === '5000' || window.location.origin.includes(':5000')) {
+                return '';
+            }
+            const hostname = window.location.hostname;
+            const isLocal = !hostname ||
+                            hostname === 'localhost' ||
+                            hostname === '127.0.0.1' ||
+                            hostname === '0.0.0.0' ||
+                            hostname === '[::1]';
+            if (!isLocal) {
+                return PRODUCTION_API_URL;
+            }
         }
     }
-    return 'http://localhost:5000';
+    return LOCAL_API_URL;
 }
 
 /**
@@ -113,8 +132,11 @@ export async function request(endpoint, options = {}) {
         response = await fetch(url, fetchConfig);
     } catch (networkError) {
         console.error(`[apiClient] Network failure: ${fetchConfig.method || 'GET'} ${url}`, networkError);
+        const serverHint = baseUrl.includes('localhost')
+            ? 'Please ensure the local backend server is active on port 5000.'
+            : 'Please verify internet connectivity or allow a moment if the cloud server is waking up from idle state.';
         throw new Error(
-            `Unable to connect to KharchaSense backend server at ${baseUrl}. Please ensure the server is active on port 5000.`
+            `Unable to connect to KharchaSense backend server at ${baseUrl}. ${serverHint}`
         );
     }
 
