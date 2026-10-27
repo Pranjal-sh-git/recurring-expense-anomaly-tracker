@@ -21,18 +21,10 @@
 const mongoose = require('mongoose');
 const anomalyService = require('../services/anomalyService');
 
-// Attempt to resolve canonical Transaction model.
-// If not yet present (in-flight dependency from Member 2 / Maneshwar),
-// controller allows runtime injection or falls back gracefully with explicit status.
-let TransactionModel = null;
-try {
-  TransactionModel = require('../models/Transaction');
-  if (TransactionModel && TransactionModel.default) {
-    TransactionModel = TransactionModel.default;
-  }
-} catch (err) {
-  // Dependency note: backend/models/Transaction.js not yet integrated on this branch.
-  // Controller will check mongoose.models.Transaction or injected model at runtime.
+// Resolve canonical Transaction model (supports dependency injection via setTransactionModel)
+let TransactionModel = require('../models/Transaction');
+if (TransactionModel && TransactionModel.default) {
+  TransactionModel = TransactionModel.default;
 }
 
 /**

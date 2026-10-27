@@ -4,13 +4,7 @@
  * Preserves Phase 1 frontend calculation semantics while supporting backend MVC architecture.
  */
 
-let Transaction;
-try {
-  Transaction = require('../models/Transaction');
-} catch (err) {
-  // Model is supplied by Maneshwar at backend/models/Transaction.js
-  // Will be resolved once branch is merged
-}
+const Transaction = require('../models/Transaction');
 
 /**
  * Safely parse and validate a numeric amount from a transaction object or raw value.
