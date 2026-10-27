@@ -59,25 +59,14 @@
     font-size: 0.7rem;
 }
 
-/* In-memory badge — amber warning pill for unverified in-memory records */
-.badge-in-memory {
-    background-color: #fffbeb;
-    color: #b45309;
-    border: 1px solid rgba(245, 158, 11, 0.28);
-    font-size: 0.68rem;
-    font-weight: 600;
+/* Status cell in transaction table — single line, no wrapping */
+.tx-status-cell {
+    white-space: nowrap;
 }
 
-/* Synced badge — subtle green confirmed pill for MongoDB Atlas records */
-.badge-synced {
-    background-color: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid rgba(22, 163, 74, 0.22);
-    font-size: 0.68rem;
-    font-weight: 600;
+.tx-status-cell .badge {
+    white-space: nowrap;
     display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
 }
 
 /* Table offline notice banner */

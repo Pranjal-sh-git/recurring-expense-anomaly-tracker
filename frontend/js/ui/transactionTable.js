@@ -72,11 +72,10 @@ function _esc(str) {
  * @param {object} tx - A transaction object (may include isAnomaly and zScore from anomalyService).
  * @returns {string} HTML string for a <tr> element.
  */
-function buildRow(tx, options = {}) {
+function buildRow(tx) {
     const displayDate = formatDate(tx.date, 'medium');
     const displayAmt = formatCurrency(tx.amount);
     const isAnomaly = Boolean(tx.isAnomaly);
-    const isOffline = Boolean(options.isOffline);
     const rowClass = isAnomaly ? 'tx-row row-anomaly' : 'tx-row';
     const safeTitle = _esc(tx.title || '--');
     const safeCategory = _esc(tx.category || 'Other');
@@ -86,15 +85,10 @@ function buildRow(tx, options = {}) {
         ? '<span class="badge badge-recurring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Recurring</span>'
         : '<span class="badge badge-oneoff">One-off</span>';
 
-    // Anomaly status badge
+    // Anomaly status badge (only badge in STATUS column)
     const statusBadge = isAnomaly
         ? '<span class="badge badge-anomaly">⚠ Anomaly</span>'
         : '<span class="badge badge-normal">Normal</span>';
-
-    // Source sync status badge (distinguishes in-memory vs freshly synced MongoDB records)
-    const syncBadge = isOffline
-        ? '<span class="badge badge-in-memory" title="Loaded from browser memory — unverified with MongoDB">In-Memory</span>'
-        : '<span class="badge badge-synced" title="Freshly synced from MongoDB Atlas"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Synced</span>';
 
     // Category badge styling
     const categoryBadge = `<span class="badge badge-category">${safeCategory}</span>`;
@@ -109,7 +103,7 @@ function buildRow(tx, options = {}) {
             <td class="tx-category-cell">${categoryBadge}</td>
             <td class="tx-amount">${displayAmt}</td>
             <td>${typeBadge}</td>
-            <td><div style="display:inline-flex;gap:0.3rem;align-items:center;flex-wrap:wrap;">${statusBadge}${syncBadge}</div></td>
+            <td class="tx-status-cell">${statusBadge}</td>
             <td class="tx-actions">
                 <div class="tx-actions-btns">
                     <button
@@ -258,7 +252,7 @@ export function renderTransactions(transactions, options = {}) {
         return;
     }
 
-    tbody.innerHTML = transactions.map(t => buildRow(t, options)).join('');
+    tbody.innerHTML = transactions.map(buildRow).join('');
 }
 
 /**
