@@ -4,8 +4,21 @@
 
 ---
 
+## 🌐 Live Project
+
+| Deployment | Live URL | Description |
+|---|---|---|
+| 🚀 **Phase 2 — Full-Stack Application** | [https://kharchasense.netlify.app](https://kharchasense.netlify.app/) | Latest full-stack frontend deployed on Netlify CDN |
+| ⚙️ **Phase 2 — Backend API** | [https://kharchasense-api.onrender.com/api/health](https://kharchasense-api.onrender.com/api/health) | Live backend REST API health endpoint on Render |
+| 💻 **Phase 1 — Frontend Application** | [https://recurringexpenseanomalytracker.netlify.app](https://recurringexpenseanomalytracker.netlify.app/) | Original frontend-only local storage version |
+
+> ⏱️ **Cold-Start Notice:** Render's free instance spins down during periods of inactivity. The first API request may take approximately 30–50 seconds to wake up the server. Subsequent requests will respond with normal sub-second latency.
+
+---
+
 ## 📋 Table of Contents
 
+- [Live Project](#-live-project)
 - [Project Description](#-project-description)
 - [Phase 1 vs Phase 2 Comparison](#-phase-1-vs-phase-2-comparison)
 - [Tech Stack](#-tech-stack)
@@ -732,7 +745,7 @@ Open `backend/.env` in your text editor and configure the environment variables:
 | `MONGO_URI` | MongoDB Atlas connection string | `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/kharchasense?retryWrites=true&w=majority` |
 | `JWT_SECRET` | Cryptographic secret for signing JWT tokens | `your_super_secret_jwt_key_min_32_characters` |
 | `JWT_EXPIRES_IN` | Token validity lifespan | `7d` |
-| `FRONTEND_URL` | Allowed client origin for CORS headers | `http://localhost:5173` |
+| `FRONTEND_URL` | Allowed client origin for CORS headers | `http://localhost:5173` (local dev) / `https://kharchasense.netlify.app` (production) |
 
 > ⚠️ **Security Warning:** Never commit your actual `.env` file containing sensitive credentials to Git.
 
@@ -910,28 +923,27 @@ KharchaSense uses a modern, decoupled cloud infrastructure designed for reliabil
 
 ### Live Deployments
 
-- **Production Backend API (Render):**  
-  [`https://kharchasense-api.onrender.com`](https://kharchasense-api.onrender.com)  
-  *Health Check Probe:* [`https://kharchasense-api.onrender.com/api/health`](https://kharchasense-api.onrender.com/api/health)
-- **Phase 1 Legacy Frontend (Netlify):**  
-  [`https://recurringexpenseanomalytracker.netlify.app`](https://recurringexpenseanomalytracker.netlify.app)
-- **Phase 2 Production Frontend:**  
-  *Currently undergoing final continuous deployment configuration for dedicated Netlify static hosting, targeting the Render cloud backend.*
+| Deployment | Live URL | Description | Status |
+|---|---|---|---|
+| **Phase 2 — Full-Stack Application** | [`https://kharchasense.netlify.app`](https://kharchasense.netlify.app/) | Latest full-stack frontend interface on Netlify CDN | 🟢 Deployed & Live |
+| **Phase 2 — Backend API (Render)** | [`https://kharchasense-api.onrender.com`](https://kharchasense-api.onrender.com) | Node.js + Express 5 cloud REST API on Render | 🟢 Deployed & Live |
+| **Phase 2 — Backend Health Probe** | [`https://kharchasense-api.onrender.com/api/health`](https://kharchasense-api.onrender.com/api/health) | Live system uptime & health check probe | 🟢 Operational |
+| **Phase 1 — Frontend Application** | [`https://recurringexpenseanomalytracker.netlify.app`](https://recurringexpenseanomalytracker.netlify.app/) | Original client-side prototype utilizing local storage | 🟢 Deployed & Live |
 
 ### Cloud Infrastructure Details
 
 1. **Backend on Render:**
    - Hosted as a continuous-deployment Web Service connected to the GitHub repository.
    - Deploys the `backend/` directory using Node.js runtime with `npm start`.
-   - Configured with environment variables (`MONGO_URI`, `JWT_SECRET`, `FRONTEND_URL`, `NODE_ENV=production`).
+   - Configured with environment variables (`MONGO_URI`, `JWT_SECRET`, `FRONTEND_URL=https://kharchasense.netlify.app`, `NODE_ENV=production`).
    - *Cold-Start Note:* On Render's Free tier, services spin down after 15 minutes of inactivity. The initial request to a sleeping instance may take approximately 30–50 seconds to warm up. Subsequent requests respond with sub-second latency.
 2. **Database on MongoDB Atlas:**
    - Fully managed cloud replica set deployed on AWS.
    - Enforces TLS 1.3 encryption in transit and encrypted storage at rest.
    - IP access control configured to permit authorized cloud application access.
 3. **Frontend on Netlify:**
-   - Hosted on Netlify's high-performance global Content Delivery Network (CDN).
-   - In production, the frontend detects its host environment and points all `apiClient` requests directly to `https://kharchasense-api.onrender.com`.
+   - Hosted on Netlify's high-performance global Content Delivery Network (CDN) at [`https://kharchasense.netlify.app`](https://kharchasense.netlify.app/).
+   - In production, the frontend dynamically resolves its host environment and routes all `apiClient` requests directly to `https://kharchasense-api.onrender.com`.
 
 ---
 
