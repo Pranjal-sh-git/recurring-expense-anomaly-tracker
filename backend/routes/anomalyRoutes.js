@@ -1,0 +1,32 @@
+/**
+ * KharchaSense Backend Anomaly Routes
+ * 
+ * Express 5 router for Anomaly Detection endpoints.
+ * 
+ * Endpoints:
+ * - GET /api/anomalies          : Retrieve user-specific flagged anomalies (flagged-only by default)
+ * - GET /api/anomalies/summary  : Retrieve statistical anomaly summary (examined count, anomaly count, category/severity breakdowns)
+ * 
+ * Shared Conventions & Security:
+ * - Protected by canonical `protect` authentication middleware (from ../middleware/authMiddleware).
+ * - Enforces data isolation strictly via authenticated `req.user.id`.
+ * - Never bypasses JWT verification based on req.user alone.
+ */
+
+'use strict';
+
+const express = require('express');
+const router = express.Router();
+const anomalyController = require('../controllers/anomalyController');
+const { protect } = require('../middleware/authMiddleware');
+
+// ─── Route Definitions ─────────────────────────────────────────────────────────
+
+// Standard mounting at /api/anomalies (Controller handles request/response logic)
+router.get('/', protect, anomalyController.getAnomalies);
+router.get('/summary', protect, anomalyController.getAnomalySummary);
+
+// Expose protect middleware for direct route testing
+router.protect = protect;
+
+module.exports = router;

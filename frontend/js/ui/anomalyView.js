@@ -51,19 +51,55 @@ export function initAnomalyView() {
 }
 
 /**
+ * Render unavailable placeholder states across the Anomaly Insights section when the backend is offline.
+ * @param {string} [errorMessage]
+ */
+export function renderAnomalyUnavailable(errorMessage = 'Server connection lost.') {
+    html(IDS.statCards, `
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Anomalies Detected</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Anomaly Rate</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Categories Affected</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+    `);
+    html(IDS.list, `
+        <div class="empty-state empty-state--error" style="padding: 2.25rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;">Anomaly Insights Unavailable</p>
+            <p class="empty-state-hint">Unable to connect to the backend anomaly detection engine. Please check that the server is running on port 5000.</p>
+        </div>
+    `);
+}
+
+/**
  * Re-render the full Anomaly Insights section with current data.
  * Called inside refreshApp() on every add / delete / boot.
  *
  * @param {Array<object>} transactions — Raw transactions from the store.
  * @param {Array<object>} analyzed     — Anomaly-enriched transactions from detectAnomalies().
+ * @param {object} [backendAnomalyData] — Optional pre-calculated backend anomaly data.
  */
-export function updateAnomalyView(transactions, analyzed) {
-    if (!Array.isArray(analyzed)) analyzed = [];
+export function updateAnomalyView(transactions, analyzed, backendAnomalyData = null) {
+    let summary;
 
-    // getAnomalySummary re-uses already-detected data by checking for isAnomaly flags
-    const summary = getAnomalySummary(analyzed);
+    if (backendAnomalyData && (backendAnomalyData.anomalySummary || backendAnomalyData.anomalies)) {
+        const rawSummary = backendAnomalyData.anomalySummary || {};
+        const anomalyList = backendAnomalyData.anomalies?.anomalies || rawSummary.anomalies || [];
+        const examinedCount = rawSummary.examinedCount ?? rawSummary.totalTransactions ?? (Array.isArray(transactions) ? transactions.length : 0);
+        const anomCount = rawSummary.anomalyCount ?? anomalyList.length;
+        const rate = rawSummary.anomalyRate ?? (examinedCount > 0 ? (anomCount / examinedCount) * 100 : 0);
 
-    const categoriesAffected = Object.keys(summary.anomaliesByCategory).length;
+        summary = {
+            anomalyCount: anomCount,
+            totalTransactions: examinedCount,
+            anomalyRate: rate,
+            anomaliesByCategory: rawSummary.anomaliesByCategory || rawSummary.byCategory || {},
+            anomalies: anomalyList
+        };
+    } else {
+        if (!Array.isArray(analyzed)) analyzed = [];
+        summary = getAnomalySummary(analyzed);
+    }
+
+    const categoriesAffected = Object.keys(summary.anomaliesByCategory || {}).length;
 
     // ── 1. Stat cards ──
     html(IDS.statCards, _buildStatCards(summary, categoriesAffected));

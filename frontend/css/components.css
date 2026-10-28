@@ -59,6 +59,82 @@
     font-size: 0.7rem;
 }
 
+/* Status cell in transaction table — single line, no wrapping */
+.tx-status-cell {
+    white-space: nowrap;
+}
+
+.tx-status-cell .badge {
+    white-space: nowrap;
+    display: inline-flex;
+}
+
+/* Table offline notice banner */
+.table-offline-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.95rem;
+    background: #fffbeb;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-sm, 6px);
+    margin-bottom: 0.9rem;
+    color: #92400e;
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.table-offline-banner svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #d97706;
+}
+
+.table-offline-banner .tob-text strong {
+    display: block;
+    font-size: 0.82rem;
+    color: #b45309;
+    margin-bottom: 0.08rem;
+}
+
+.table-offline-banner .tob-text span {
+    font-size: 0.76rem;
+    color: #92400e;
+}
+
+/* Chart unavailable state placeholder */
+.chart-unavailable-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.25rem 1rem;
+    text-align: center;
+    min-height: 190px;
+    color: var(--text-muted);
+}
+
+.chart-unavailable-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.chart-unavailable-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.25rem 0;
+}
+
+.chart-unavailable-desc {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    max-width: 300px;
+    margin: 0;
+    line-height: 1.35;
+}
+
 
 /* ─── Anomaly row highlight ──────────────────────────────────────────────────── */
 

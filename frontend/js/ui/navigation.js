@@ -20,7 +20,7 @@
 
 import { isAuthenticated, logout, updateNavbarUserDisplay } from '../services/authService.js';
 import { openAuthModal, resetAuthForms } from './authModal.js';
-import { reloadForUser } from '../state/transactionStore.js';
+import { reloadForUser, clearInMemoryState } from '../state/transactionStore.js';
 
 // ─── Section metadata ────────────────────────────────────────────────────────
 
@@ -138,16 +138,17 @@ export function showLandingPage() {
  * Protected: requires authentication.
  * @param {string} [sectionId='overview']
  */
-export function showDashboard(sectionId = 'overview') {
+export async function showDashboard(sectionId = 'overview') {
     // ── Authentication Check ──
     if (!isAuthenticated()) {
         showLandingPage();
         openAuthModal({
             tab: 'login',
-            onSuccess: () => {
-                reloadForUser();
+            onSuccess: async () => {
+                clearInMemoryState();
+                await reloadForUser();
                 updateLandingAuthState();
-                showDashboard(sectionId);
+                await showDashboard(sectionId);
             }
         });
         return;
@@ -155,8 +156,8 @@ export function showDashboard(sectionId = 'overview') {
 
     _isDashboardActive = true;
 
-    // Synchronize transactions & user display for active session
-    reloadForUser();
+    // Synchronize transactions & user display for active session from MongoDB
+    await reloadForUser();
     updateNavbarUserDisplay();
     updateLandingAuthState();
 
@@ -394,12 +395,13 @@ function _bindNavbarActions() {
     // Dropdown Logout Button
     const navbarLogoutBtn = document.getElementById('btn-navbar-logout');
     if (navbarLogoutBtn) {
-        navbarLogoutBtn.addEventListener('click', (e) => {
+        navbarLogoutBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (dropdown) dropdown.classList.remove('dropdown--show');
             if (profileBtn) profileBtn.classList.remove('active');
+            clearInMemoryState();
             logout();
-            reloadForUser();
+            await reloadForUser();
             resetAuthForms();
             showLandingPage();
         });
@@ -418,9 +420,10 @@ function _bindDashboardReturnActions() {
     // Logout button in dashboard sidebar → log out session and return to landing page
     const logoutBtn = document.querySelector('.btn-logout');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
+            clearInMemoryState();
             logout();
-            reloadForUser();
+            await reloadForUser();
             resetAuthForms();
             showLandingPage();
         });

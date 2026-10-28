@@ -227,9 +227,8 @@ function _bindForms() {
             // Set button loading state
             _setButtonLoading(submitBtn, 'Signing you in...');
 
-            // Realistic micro-delay for smooth SaaS feel
-            setTimeout(() => {
-                const res = login(email, password);
+            try {
+                const res = await login(email, password);
 
                 if (!res.success) {
                     _resetButton(submitBtn, 'Sign In to Dashboard →');
@@ -248,8 +247,11 @@ function _bindForms() {
                     if (typeof _onAuthSuccessCallback === 'function') {
                         _onAuthSuccessCallback();
                     }
-                }, 400);
-            }, 450);
+                }, 350);
+            } catch (err) {
+                _resetButton(submitBtn, 'Sign In to Dashboard →');
+                _showError('login', err.message || 'Authentication failed. Please try again.');
+            }
         });
     }
 
@@ -295,8 +297,8 @@ function _bindForms() {
             // Set button loading state
             _setButtonLoading(submitBtn, 'Creating account...');
 
-            setTimeout(() => {
-                const res = signup(name, email, password);
+            try {
+                const res = await signup(name, email, password);
 
                 if (!res.success) {
                     _resetButton(submitBtn, 'Create Account →');
@@ -315,8 +317,11 @@ function _bindForms() {
                     if (typeof _onAuthSuccessCallback === 'function') {
                         _onAuthSuccessCallback();
                     }
-                }, 400);
-            }, 500);
+                }, 350);
+            } catch (err) {
+                _resetButton(submitBtn, 'Create Account →');
+                _showError('signup', err.message || 'Registration failed. Please try again.');
+            }
         });
     }
 }

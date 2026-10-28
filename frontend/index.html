@@ -18,6 +18,25 @@
     <link rel="stylesheet" href="css/landing.css">
     <link rel="stylesheet" href="css/auth.css">
 
+    <!-- Runtime API Configuration for Local Development & Netlify Production -->
+    <script>
+        (function() {
+            if (!window.KHARCHASENSE_API_URL) {
+                var hostname = window.location.hostname;
+                var isLocal = !hostname ||
+                              hostname === 'localhost' ||
+                              hostname === '127.0.0.1' ||
+                              hostname === '0.0.0.0' ||
+                              hostname === '[::1]';
+
+                // Automatically target Render production backend on Netlify / remote hosts, or localhost:5000 in local dev
+                window.KHARCHASENSE_API_URL = isLocal
+                    ? 'http://localhost:5000'
+                    : 'https://kharchasense-api.onrender.com';
+            }
+        })();
+    </script>
+
     <!-- Chart.js Library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -894,7 +913,7 @@
                     <div class="src-text">
                         <span class="src-label">Total Records</span>
                         <span class="src-value" id="sidebar-record-count">0</span>
-                        <span class="src-status"><span class="status-pulse-dot"></span> Synced just now</span>
+                        <span class="src-status" id="sidebar-sync-status"><span class="status-pulse-dot" id="sidebar-sync-dot"></span> <span id="sidebar-sync-text">Synced just now</span></span>
                     </div>
                 </div>
 
@@ -910,7 +929,7 @@
                     <div class="src-text">
                         <span class="src-label">Anomalies Detected</span>
                         <span class="src-value src-value--danger" id="sidebar-anomaly-count">0</span>
-                        <span class="src-status src-status--danger"><span class="status-pulse-dot status-pulse-dot--danger"></span> Active alerts</span>
+                        <span class="src-status src-status--danger" id="sidebar-anomaly-status"><span class="status-pulse-dot status-pulse-dot--danger" id="sidebar-anomaly-dot"></span> <span id="sidebar-anomaly-text">Active alerts</span></span>
                     </div>
                 </div>
             </div>
@@ -1058,6 +1077,7 @@
 
             <!-- ── Scrollable Content ── -->
             <main class="content-area" id="main-content">
+                <div id="global-connection-banner" class="global-connection-banner" style="display: none;"></div>
 
 
                 <!-- ═══════════════════════════════════════════

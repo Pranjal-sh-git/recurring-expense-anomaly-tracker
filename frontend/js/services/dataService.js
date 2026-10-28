@@ -1,22 +1,29 @@
 /**
- * dataService.js — Persistence Layer
+ * dataService.js — Persistence & Backend API Integration Layer
  *
  * Responsible for:
- *   - Saving/loading transactions to/from LocalStorage.
- *   - Clearing persisted data.
+ *   - Fetching and mutating transactions via MongoDB-backed REST APIs (/api/transactions).
+ *   - Caching transactions in LocalStorage for resilient offline fallback.
+ *   - Clearing persisted user data.
  *   - Parsing CSV text into validated, normalized transaction arrays.
  *
  * No DOM access. No analytics. No anomaly detection.
  *
  * Exports:
- *   loadTransactions()             – Array of raw transaction objects
- *   saveTransactions(txArray)      – boolean (success flag)
- *   clearTransactions()            – boolean (success flag)
+ *   fetchTransactionsApi(params)   – Promise<Array<Object>> from MongoDB
+ *   createTransactionApi(tx)       – Promise<Object> created in MongoDB
+ *   updateTransactionApi(id, tx)   – Promise<Object> updated in MongoDB
+ *   deleteTransactionApi(id)       – Promise<Object> deleted in MongoDB
+ *   importTransactionsApi(txList)  – Promise<Array<Object>> bulk created in MongoDB
+ *   loadTransactions(userId)       – Array of cached transaction objects from LocalStorage
+ *   saveTransactions(txArray, uId) – boolean (success flag)
+ *   clearTransactions(userId)      – boolean (success flag)
  *   parseCSV(csvText, options)     – { transactions, skipped }
  */
 
 import { validateTransaction, normalizeTransaction } from '../utils/validators.js';
 import { getCurrentUser }                             from './authService.js';
+import { get, post, put, del }                       from './apiClient.js';
 
 // ─── Storage key ──────────────────────────────────────────────────────────────
 
@@ -42,76 +49,192 @@ function isLocalStorageAvailable() {
     return true;
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── MongoDB REST API Integration ─────────────────────────────────────────────
 
 /**
- * Load all saved transactions from LocalStorage for the given user.
- * Returns an empty array if nothing is stored or the data is corrupted.
+ * Fetch all transactions for the authenticated user from MongoDB.
+ * Automatically paginates through all available pages (limit 100).
+ *
+ * @param {object} [params={}] - Optional query filters (category, from, to, recurring, etc.)
+ * @returns {Promise<Array<Object>>}
+ */
+export async function fetchTransactionsApi(params = {}) {
+    let allTransactions = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+        const queryParams = new URLSearchParams({
+            limit: '100',
+            page: String(page),
+            ...params
+        });
+
+        const response = await get(`/api/transactions?${queryParams.toString()}`);
+        const data = response?.data;
+        const list = Array.isArray(data) ? data : (data?.transactions || []);
+        allTransactions = allTransactions.concat(list);
+
+        totalPages = data?.pagination?.totalPages || 1;
+        page++;
+    } while (page <= totalPages);
+
+    return allTransactions;
+}
+
+/**
+ * Create a new transaction in MongoDB.
+ *
+ * @param {Object} tx - { title, amount, category, date, recurring, description }
+ * @returns {Promise<Object>} Created transaction
+ */
+export async function createTransactionApi(tx) {
+    const payload = {
+        title: tx.title,
+        amount: Number(tx.amount),
+        category: tx.category,
+        date: tx.date,
+        recurring: Boolean(tx.recurring),
+        description: tx.description || ''
+    };
+
+    const response = await post('/api/transactions', payload);
+    return response?.data || response;
+}
+
+/**
+ * Update an existing transaction in MongoDB.
+ *
+ * @param {string} id - Transaction ObjectId
+ * @param {Object} updates - Updated field values
+ * @returns {Promise<Object>} Updated transaction
+ */
+export async function updateTransactionApi(id, updates) {
+    if (!id) throw new Error('Transaction ID is required for update.');
+
+    const payload = { ...updates };
+    if (payload.amount !== undefined) {
+        payload.amount = Number(payload.amount);
+    }
+    if (payload.recurring !== undefined) {
+        payload.recurring = Boolean(payload.recurring);
+    }
+
+    const response = await put(`/api/transactions/${id}`, payload);
+    return response?.data || response;
+}
+
+/**
+ * Delete a transaction from MongoDB.
+ *
+ * @param {string} id - Transaction ObjectId
+ * @returns {Promise<Object>} Deletion result { id }
+ */
+export async function deleteTransactionApi(id) {
+    if (!id) throw new Error('Transaction ID is required for deletion.');
+    const response = await del(`/api/transactions/${id}`);
+    return response?.data || response;
+}
+
+/**
+ * Bulk import an array of transactions to MongoDB.
+ *
+ * @param {Array<Object>} transactions
+ * @returns {Promise<Array<Object>>}
+ */
+export async function importTransactionsApi(transactions) {
+    if (!Array.isArray(transactions) || transactions.length === 0) {
+        return [];
+    }
+
+    const cleanedBatch = transactions.map(tx => ({
+        title: tx.title,
+        amount: Number(tx.amount),
+        category: tx.category,
+        date: tx.date,
+        recurring: Boolean(tx.recurring),
+        description: tx.description || ''
+    }));
+
+    const response = await post('/api/transactions/import', { transactions: cleanedBatch });
+    const data = response?.data;
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.transactions)) return data.transactions;
+    return [];
+}
+
+// ─── LocalStorage Guest Storage & Cleanup API ─────────────────────────────────
+
+/**
+ * Load saved transactions for guest sessions.
+ * Authenticated users fetch exclusively from Express/MongoDB REST API.
  * @param {string|null} [userId]
  * @returns {Array<Object>}
  */
 export function loadTransactions(userId) {
     if (!isLocalStorageAvailable()) return [];
+    // Authenticated users fetch exclusively from Express/MongoDB
+    const activeId = userId || getCurrentUser()?.id || null;
+    if (activeId) {
+        return [];
+    }
+
     try {
-        const activeId = userId || getCurrentUser()?.id || null;
-        const key = storageKey(activeId);
-        let raw = localStorage.getItem(key);
-
-        // Check legacy storage keys if new key is empty
+        // Read guest transactions
+        let raw = localStorage.getItem('kharchasense_transactions_guest');
         if (!raw) {
-            const legacyKey = activeId ? `expense_tracker_transactions_${activeId}` : 'expense_tracker_transactions_guest';
-            raw = localStorage.getItem(legacyKey);
-            if (!raw && activeId === 'user_demo_001') {
-                raw = localStorage.getItem('expense_tracker_transactions');
-            }
-            if (raw) {
-                try {
-                    localStorage.setItem(key, raw);
-                } catch (e) {
-                    console.warn('Could not migrate transaction data:', e);
-                }
-            }
+            // Read legacy Phase 1 guest key if present, but DO NOT mutate, rewrite, or delete it
+            raw = localStorage.getItem('expense_tracker_transactions_guest');
         }
-
         if (!raw) return [];
         const parsed = JSON.parse(raw);
-        // Guard against stored non-array values
         return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-        console.error('dataService.loadTransactions: failed to parse stored data.', error);
+        console.error('dataService.loadTransactions: failed to parse stored guest data.', error);
         return [];
     }
 }
 
 /**
- * Persist an array of transactions to LocalStorage for the given user.
+ * Persist an array of transactions to LocalStorage for guest mode only.
+ * Dual-writing to LocalStorage is disabled for authenticated users.
  * @param {Array<Object>} transactions
  * @param {string|null} [userId]
- * @returns {boolean} True if saved successfully, false on error.
+ * @returns {boolean} True if saved successfully, false on error or if user is authenticated.
  */
 export function saveTransactions(transactions, userId) {
     if (!isLocalStorageAvailable()) return false;
+    const activeId = userId || getCurrentUser()?.id || null;
+    // Do not dual-write transactions to LocalStorage for authenticated sessions
+    if (activeId) {
+        return false;
+    }
+
     try {
         const list = Array.isArray(transactions) ? transactions : [];
-        const key = storageKey(userId);
-        localStorage.setItem(key, JSON.stringify(list));
+        localStorage.setItem('kharchasense_transactions_guest', JSON.stringify(list));
         return true;
     } catch (error) {
-        console.error('dataService.saveTransactions: failed to persist data.', error);
+        console.error('dataService.saveTransactions: failed to persist guest data.', error);
         return false;
     }
 }
 
 /**
- * Remove all persisted transaction data from LocalStorage for the given user.
+ * Remove persisted transaction cache for the given user.
+ * Preserves legacy Phase 1 keys.
  * @param {string|null} [userId]
  * @returns {boolean} True if cleared successfully, false on error.
  */
 export function clearTransactions(userId) {
     if (!isLocalStorageAvailable()) return false;
     try {
-        const key = storageKey(userId);
-        localStorage.removeItem(key);
+        if (userId) {
+            // Remove authenticated user's Phase 2 cache key only
+            localStorage.removeItem(`kharchasense_transactions_${userId}`);
+        } else {
+            localStorage.removeItem('kharchasense_transactions_guest');
+        }
         return true;
     } catch (error) {
         console.error('dataService.clearTransactions: failed to clear data.', error);
@@ -163,7 +286,6 @@ export function parseCSV(csvText, { delimiter = ',' } = {}) {
     const missingCols = requiredCols.filter(col => colIndex[col] === -1);
     if (missingCols.length > 0) {
         console.warn(`dataService.parseCSV: missing required column(s): ${missingCols.join(', ')}`);
-        // Still attempt parsing — missing columns will produce empty strings / 0
     }
 
     // ── Parse data rows ──
@@ -187,7 +309,7 @@ export function parseCSV(csvText, { delimiter = ',' } = {}) {
 
         const candidate = {
             title:     raw.title,
-            amount:    raw.amount,         // still a string; validateAmount handles numeric strings
+            amount:    raw.amount,
             category:  raw.category,
             date:      raw.date,
             recurring: recurringBool,
@@ -226,7 +348,6 @@ function splitCSVLine(line, delimiter) {
 
         if (char === '"') {
             if (insideQuotes && line[i + 1] === '"') {
-                // Escaped double-quote inside a quoted field
                 current += '"';
                 i++;
             } else {
@@ -240,13 +361,16 @@ function splitCSVLine(line, delimiter) {
         }
     }
 
-    fields.push(current); // push the last field
+    fields.push(current);
     return fields;
 }
 
-// ─── Default export ───────────────────────────────────────────────────────────
-
 export default {
+    fetchTransactionsApi,
+    createTransactionApi,
+    updateTransactionApi,
+    deleteTransactionApi,
+    importTransactionsApi,
     loadTransactions,
     saveTransactions,
     clearTransactions,

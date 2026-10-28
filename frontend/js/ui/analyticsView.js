@@ -65,28 +65,75 @@ export function initAnalyticsView() {
 }
 
 /**
+ * Render unavailable placeholder states across the Analytics section when the backend is offline.
+ * @param {string} [errorMessage]
+ */
+export function renderAnalyticsUnavailable(errorMessage = 'Server connection lost.') {
+    html(IDS.summaryCards, `
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Total Spend</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Avg Transaction</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Top Category</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+        <div class="metric-card"><div class="metric-card-top"><span class="metric-label">Recurring Spend</span></div><div class="metric-value">--</div><div class="metric-comparison"><span class="comp-badge comp-badge--danger">Offline</span></div></div>
+    `);
+    html(IDS.recurringBar, `
+        <div class="empty-state empty-state--error" style="padding: 1.25rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Recurring analytics unavailable</p>
+            <p class="empty-state-hint" style="font-size:0.75rem;">Cannot calculate commitment breakdown while server is offline.</p>
+        </div>
+    `);
+    html(IDS.categoryTable, `
+        <div class="empty-state empty-state--error" style="padding: 1.5rem 1rem;">
+            <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+            <p class="empty-state-text" style="color:var(--danger);font-weight:600;font-size:0.85rem;">Category breakdown unavailable</p>
+            <p class="empty-state-hint" style="font-size:0.75rem;">Failed to fetch category statistics from backend server.</p>
+        </div>
+    `);
+}
+
+/**
  * Re-render the full Analytics section with current data.
  * Called inside refreshApp() after every add / delete / boot.
  *
  * @param {Array<object>} transactions — Raw transactions from the store.
  * @param {Array<object>} analyzed     — Anomaly-enriched transactions (from detectAnomalies).
+ * @param {object} [backendAnalytics]  — Optional pre-calculated backend analytics data.
  */
-export function updateAnalyticsView(transactions, analyzed) {
+export function updateAnalyticsView(transactions, analyzed, backendAnalytics = null) {
     if (!Array.isArray(transactions)) transactions = [];
     if (!Array.isArray(analyzed))     analyzed     = [];
 
-    const total       = calculateTotalExpenses(transactions);
-    const count       = calculateTotalTransactions(transactions);
-    const avgAmount   = count > 0 ? total / count : 0;
-    const topCat      = getHighestSpendingCategory(transactions);
-    const catTotals   = calculateCategoryTotals(transactions);
+    let total, count, avgAmount, topCat, catTotals;
+    let recurringSpend, recurringCount, oneOffSpend, recurringPct;
 
-    // Recurring stats
-    const recurringTxs    = transactions.filter(t => Boolean(t.recurring));
-    const recurringSpend  = recurringTxs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const recurringCount  = recurringTxs.length;
-    const oneOffSpend     = Math.max(0, total - recurringSpend);
-    const recurringPct    = total > 0 ? (recurringSpend / total) * 100 : 0;
+    if (backendAnalytics && backendAnalytics.summary) {
+        const sum = backendAnalytics.summary;
+        total = Number(sum.totalExpenses ?? sum.totalSpending ?? 0);
+        count = Number(sum.totalTransactions ?? sum.transactionCount ?? 0);
+        avgAmount = Number(sum.averageTransactionSize ?? sum.average ?? (count > 0 ? total / count : 0));
+        topCat = sum.highestSpendingCategory || sum.topCategory?.category || null;
+
+        const rec = backendAnalytics.recurring;
+        recurringSpend = Number(rec?.recurring?.total ?? rec?.recurringSpend ?? 0);
+        recurringCount = Number(rec?.recurring?.count ?? rec?.recurringCount ?? 0);
+        oneOffSpend = Number(rec?.nonRecurring?.total ?? rec?.oneOffSpend ?? Math.max(0, total - recurringSpend));
+        recurringPct = Number(rec?.recurring?.percentage ?? (total > 0 ? (recurringSpend / total) * 100 : 0));
+
+        catTotals = backendAnalytics.categories?.totals || calculateCategoryTotals(transactions);
+    } else {
+        total       = calculateTotalExpenses(transactions);
+        count       = calculateTotalTransactions(transactions);
+        avgAmount   = count > 0 ? total / count : 0;
+        topCat      = getHighestSpendingCategory(transactions);
+        catTotals   = calculateCategoryTotals(transactions);
+
+        // Recurring stats
+        const recurringTxs    = transactions.filter(t => Boolean(t.recurring));
+        recurringSpend  = recurringTxs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        recurringCount  = recurringTxs.length;
+        oneOffSpend     = Math.max(0, total - recurringSpend);
+        recurringPct    = total > 0 ? (recurringSpend / total) * 100 : 0;
+    }
 
     // ── 1. Summary cards ──
     html(IDS.summaryCards, _buildSummaryCards({
@@ -94,15 +141,18 @@ export function updateAnalyticsView(transactions, analyzed) {
     }));
 
     // ── 2. Charts (Analytics-specific containers) ──
-    renderDailySpendingChart(IDS.dailyChart, transactions);
-    renderCategorySpendingChart(IDS.categoryChart, transactions, {
+    const dailyDataInput = backendAnalytics?.trends || transactions;
+    const catDataInput = backendAnalytics?.categories || transactions;
+
+    renderDailySpendingChart(IDS.dailyChart, dailyDataInput);
+    renderCategorySpendingChart(IDS.categoryChart, catDataInput, {
         type: 'bar'
     });
 
     // ── 3. Recurring vs One-off bar ──
     html(IDS.recurringBar, _buildRecurringBar({
         recurringSpend, oneOffSpend, recurringPct, recurringCount,
-        oneOffCount: count - recurringCount, total,
+        oneOffCount: Math.max(0, count - recurringCount), total,
     }));
 
     // ── 4. Category insights table ──

@@ -85,7 +85,7 @@ function buildRow(tx) {
         ? '<span class="badge badge-recurring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Recurring</span>'
         : '<span class="badge badge-oneoff">One-off</span>';
 
-    // Anomaly status badge
+    // Anomaly status badge (only badge in STATUS column)
     const statusBadge = isAnomaly
         ? '<span class="badge badge-anomaly">⚠ Anomaly</span>'
         : '<span class="badge badge-normal">Normal</span>';
@@ -103,7 +103,7 @@ function buildRow(tx) {
             <td class="tx-category-cell">${categoryBadge}</td>
             <td class="tx-amount">${displayAmt}</td>
             <td>${typeBadge}</td>
-            <td>${statusBadge}</td>
+            <td class="tx-status-cell">${statusBadge}</td>
             <td class="tx-actions">
                 <div class="tx-actions-btns">
                     <button
@@ -208,12 +208,43 @@ export function initTransactionTable(onDelete, onEdit) {
  * Replaces all existing rows; shows the empty-state message for an empty array.
  *
  * @param {Array<object>} transactions - Array of transaction objects.
+ * @param {object} [options={}] - Rendering options { isOffline: boolean }.
  */
-export function renderTransactions(transactions) {
+export function renderTransactions(transactions, options = {}) {
     const tbody = document.getElementById('transaction-table-body');
     if (!tbody) {
         console.warn('renderTransactions: #transaction-table-body not found. Call initTransactionTable() first.');
         return;
+    }
+
+    const isOffline = Boolean(options.isOffline);
+    const container = document.getElementById('transaction-table-container');
+
+    // Manage the in-memory offline banner above table
+    let offlineBanner = document.getElementById('table-offline-banner');
+    if (isOffline && Array.isArray(transactions) && transactions.length > 0) {
+        if (!offlineBanner && container) {
+            offlineBanner = document.createElement('div');
+            offlineBanner.id = 'table-offline-banner';
+            offlineBanner.className = 'table-offline-banner';
+            container.insertBefore(offlineBanner, container.firstChild);
+        }
+        if (offlineBanner) {
+            offlineBanner.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div class="tob-text">
+                    <strong>Backend Connection Lost (In-Memory View)</strong>
+                    <span>Showing ${transactions.length} previously loaded records from memory. These records are not verified with MongoDB. Reconnect the server to resume live synchronization.</span>
+                </div>
+            `;
+            offlineBanner.style.display = 'flex';
+        }
+    } else if (offlineBanner) {
+        offlineBanner.style.display = 'none';
     }
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
@@ -222,4 +253,28 @@ export function renderTransactions(transactions) {
     }
 
     tbody.innerHTML = transactions.map(buildRow).join('');
+}
+
+/**
+ * Render an explicit error state in the transaction table body.
+ * Displayed when the backend MongoDB API is unreachable or returns an error.
+ * @param {string} [errorMessage]
+ */
+export function renderTableError(errorMessage) {
+    const tbody = document.getElementById('transaction-table-body');
+    const offlineBanner = document.getElementById('table-offline-banner');
+    if (offlineBanner) offlineBanner.style.display = 'none';
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr class="empty-state-row">
+            <td colspan="7" class="empty-state-cell">
+                <div class="empty-state empty-state--error">
+                    <span class="empty-state-icon" aria-hidden="true">⚠️</span>
+                    <p class="empty-state-text" style="font-weight:600; color: #ef4444;">Unable to sync with server</p>
+                    <p class="empty-state-hint">${_esc(errorMessage || 'Database connection error. Please ensure the backend server is running and reload to retry.')}</p>
+                </div>
+            </td>
+        </tr>
+    `;
 }
