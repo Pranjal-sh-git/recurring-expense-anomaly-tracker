@@ -85,7 +85,6 @@ Dedicated anomaly intelligence center detailing flagged outliers ($|Z| \ge 2.0$)
 - [Security & Authentication](#-security--authentication)
 - [Deployment & Cloud Infrastructure](#-deployment--cloud-infrastructure)
 - [Demo Account](#-demo-account)
-- [Team Contributions](#-team-contributions)
 
 ---
 
@@ -1011,19 +1010,6 @@ A pre-configured demo account is available for faculty evaluation and testing:
 | **Password** | `password123` |
 
 > 💡 **Self-Registration Supported:** You can also register new personal accounts using any valid email address. Every registered user receives a completely isolated, private database space in MongoDB Atlas.
-
----
-
-## 👥 Team Contributions
-
-KharchaSense was developed collaboratively for academic evaluation. The table below documents verified member contributions:
-
-| Team Member | Project Responsibilities & Delivered Modules |
-|---|---|
-| **Pranjal Sharma** | Frontend/backend architectural integration, UI refinement, MongoDB persistence integration, offline connection feedback & recovery handling, automated test suites, and cloud deployment. |
-| **Maneshwar** | Transaction CRUD implementation, Express transaction routing, controller endpoints, Mongoose schema modeling, and batch import mechanisms. |
-| **Garima** | Backend analytics service, spending metric aggregation, category breakdown algorithms, recurring expense detection, and time-series trend calculation. |
-| **Dilpreet** | Backend statistical anomaly detection engine, Z-score mathematical formulation, baseline category grouping, low-sample safeguards, and anomaly endpoints. |
 
 ---
 
