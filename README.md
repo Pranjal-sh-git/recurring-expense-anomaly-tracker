@@ -16,9 +16,63 @@
 
 ---
 
+## 📸 Application Screenshots & Visual Tour
+
+Take a visual walkthrough of **KharchaSense** across its core views and features:
+
+### 1. 🚀 Modern Landing Page & Interactive Hero
+Engaging landing page featuring real-time value highlights (*100% Secure*, *Smart Analytics*, *Real-time Detection*), a live 3D-styled interactive dashboard mockup, and immediate call-to-actions.
+
+![KharchaSense Landing Page](frontend/screenshots/Screenshot%202026-10-31%20213842.png)
+
+---
+
+### 2. ⚙️ How Anomaly Detection Works
+Interactive explainer breaking down the four-step anomaly detection pipeline: **Transaction Ingestion** $\rightarrow$ **Category Baseline Calculation** $\rightarrow$ **Z-Score Statistical Evaluation** $\rightarrow$ **Outlier Flagging**.
+
+![How Anomaly Detection Works](frontend/screenshots/Screenshot%202026-10-31%20213857.png)
+
+---
+
+### 3. 🔐 Secure Authentication & Instant Demo Access
+Glassmorphism authentication modal supporting dual-mode Sign In and Account Creation with instant pre-filled demo account credentials (`test@kharchasense.app`).
+
+![User Authentication Modal](frontend/screenshots/Screenshot%202026-10-31%20213912.png)
+
+---
+
+### 4. 📊 Overview Dashboard & Expense Summary
+Central command center featuring high-level KPI cards (*Total Expenses*, *Transactions*, *Anomalies*, *Top Category*, *Recurring Commitments*), native HTML5 Canvas daily spending trend line chart, category donut distribution, recurring-vs-one-off spending split, and recent activity feed.
+
+![Overview Dashboard](frontend/screenshots/Screenshot%202026-10-31%20213952.png)
+
+---
+
+### 5. 📈 Deep-Dive Spending Analytics & Category Breakdown
+Dedicated analytics view with daily expenditure trajectory, horizontal bar distribution across categories, recurring vs. one-off spending breakdown gauge, and category-level insights.
+
+![Deep-Dive Analytics View](frontend/screenshots/Screenshot%202026-10-31%20214004.png)
+
+---
+
+### 6. 💳 Transaction Management & CSV Bulk Import
+Comprehensive ledger featuring an intuitive **Add Transaction** form, full transaction history table with multi-parameter filtering (category, type, status, date sorting), real-time anomaly badges, one-click CSV bulk upload, and standardized sample CSV template generation.
+
+![Transaction Management & CSV Bulk Import](frontend/screenshots/Screenshot%202026-10-31%20214013.png)
+
+---
+
+### 7. 🚨 Statistical Anomaly Insights & Outlier Intelligence
+Dedicated anomaly intelligence center detailing flagged outliers ($|Z| \ge 2.0$), anomaly rate percentage ($5.66\%$), affected categories, and actionable breakdown cards displaying exact statistical deviation (e.g., $+28.87$ Z-Score) versus category averages.
+
+![Statistical Anomaly Insights](frontend/screenshots/Screenshot%202026-10-31%20214023.png)
+
+---
+
 ## 📋 Table of Contents
 
 - [Live Project](#-live-project)
+- [Application Screenshots & Visual Tour](#-application-screenshots--visual-tour)
 - [Project Description](#-project-description)
 - [Phase 1 vs Phase 2 Comparison](#-phase-1-vs-phase-2-comparison)
 - [Tech Stack](#-tech-stack)
